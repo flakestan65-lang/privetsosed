@@ -1,0 +1,1353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1a1a2e">
+<title>Hello Neighbor Mobile</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0a1a; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+#gameCanvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+#loadingScreen { position: fixed; inset: 0; z-index: 1000; background: linear-gradient(135deg, #0f0c29, #302b63, #24243e); display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.8s; }
+#loadingScreen.hidden { opacity: 0; pointer-events: none; }
+.loading-title { font-size: 2.2rem; font-weight: 800; color: #ff6b6b; text-shadow: 0 0 20px rgba(255,107,107,0.5); margin-bottom: 10px; letter-spacing: 2px; }
+.loading-sub { font-size: 0.9rem; color: #a0a0c0; margin-bottom: 30px; }
+.loading-bar-container { width: 280px; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; margin-bottom: 15px; }
+.loading-bar { width: 0%; height: 100%; background: linear-gradient(90deg, #ff6b6b, #feca57); border-radius: 4px; transition: width 0.3s ease; }
+.loading-text { font-size: 0.8rem; color: #8888aa; }
+#mainMenu { position: fixed; inset: 0; z-index: 900; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.6s; }
+#mainMenu.hidden { opacity: 0; pointer-events: none; }
+.menu-title { font-size: 2.8rem; font-weight: 900; color: #e94560; text-shadow: 0 0 30px rgba(233,69,96,0.4); margin-bottom: 5px; letter-spacing: 3px; }
+.menu-subtitle { font-size: 0.95rem; color: #a0a0c0; margin-bottom: 40px; }
+.menu-btn { width: 220px; padding: 14px 0; margin: 8px 0; background: linear-gradient(135deg, #e94560, #ff6b6b); border: none; border-radius: 12px; color: white; font-size: 1.1rem; font-weight: 700; cursor: pointer; box-shadow: 0 4px 15px rgba(233,69,96,0.3); transition: transform 0.15s; }
+.menu-btn:active { transform: scale(0.95); }
+.menu-btn.secondary { background: linear-gradient(135deg, #533483, #7b68ee); }
+.menu-btn.settings { background: linear-gradient(135deg, #2d3436, #636e72); }
+.menu-version { position: absolute; bottom: 15px; right: 15px; font-size: 0.7rem; color: #666; }
+#settingsPanel { position: fixed; inset: 0; z-index: 950; background: rgba(10,10,26,0.95); display: none; flex-direction: column; align-items: center; justify-content: center; }
+#settingsPanel.active { display: flex; }
+.settings-title { font-size: 1.8rem; color: #feca57; margin-bottom: 25px; }
+.setting-row { width: 280px; display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.setting-label { color: #ccc; font-size: 0.95rem; }
+.setting-slider { -webkit-appearance: none; width: 120px; height: 6px; background: rgba(255,255,255,0.2); border-radius: 3px; outline: none; }
+.setting-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; background: #feca57; border-radius: 50%; cursor: pointer; }
+.setting-toggle { width: 50px; height: 26px; background: #444; border-radius: 13px; position: relative; cursor: pointer; transition: background 0.3s; }
+.setting-toggle.active { background: #00d2d3; }
+.setting-toggle::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; background: white; border-radius: 50%; transition: transform 0.3s; }
+.setting-toggle.active::after { transform: translateX(24px); }
+#hud { position: fixed; inset: 0; z-index: 10; pointer-events: none; display: none; }
+#hud.active { display: block; }
+.noise-bar-container { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); width: 160px; height: 18px; background: rgba(0,0,0,0.6); border-radius: 9px; overflow: hidden; border: 2px solid rgba(255,255,255,0.2); }
+.noise-bar { width: 0%; height: 100%; background: linear-gradient(90deg, #00d2d3, #feca57, #ff6b6b); border-radius: 7px; transition: width 0.2s; }
+.noise-label { position: absolute; top: 32px; left: 50%; transform: translateX(-50%); font-size: 0.65rem; color: #aaa; text-transform: uppercase; letter-spacing: 1px; }
+.health-container { position: absolute; top: 12px; left: 12px; display: flex; align-items: center; gap: 6px; }
+.health-heart { font-size: 1.4rem; }
+.health-text { font-size: 0.85rem; color: #ff6b6b; font-weight: 700; }
+.item-hand { position: absolute; bottom: 100px; right: 12px; width: 56px; height: 56px; background: rgba(0,0,0,0.5); border: 2px solid rgba(255,255,255,0.3); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; }
+#notificationArea { position: absolute; top: 60px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.notification { background: rgba(0,0,0,0.7); color: #fff; padding: 8px 16px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; border-left: 3px solid #feca57; animation: notifIn 0.3s ease; max-width: 280px; text-align: center; }
+.notification.danger { border-left-color: #ff6b6b; color: #ff6b6b; }
+.notification.success { border-left-color: #00d2d3; color: #00d2d3; }
+@keyframes notifIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+#caughtScreen { position: fixed; inset: 0; z-index: 800; background: rgba(139, 0, 0, 0.85); display: none; flex-direction: column; align-items: center; justify-content: center; }
+#caughtScreen.active { display: flex; }
+.caught-title { font-size: 2.5rem; color: #fff; font-weight: 900; margin-bottom: 10px; }
+.caught-sub { font-size: 1rem; color: #ffaaaa; margin-bottom: 30px; }
+.touch-controls { position: fixed; z-index: 20; pointer-events: auto; }
+#joystickZone { position: fixed; bottom: 20px; left: 20px; z-index: 20; width: 140px; height: 140px; pointer-events: auto; }
+.joystick-base { position: absolute; width: 120px; height: 120px; background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; left: 10px; top: 10px; }
+.joystick-knob { position: absolute; width: 50px; height: 50px; background: rgba(255,255,255,0.4); border: 2px solid rgba(255,255,255,0.6); border-radius: 50%; left: 45px; top: 45px; transition: none; }
+#actionButtons { position: fixed; bottom: 20px; right: 15px; z-index: 20; display: grid; grid-template-columns: repeat(2, 60px); gap: 8px; }
+.action-btn { width: 60px; height: 60px; background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; color: white; font-size: 1.4rem; display: flex; align-items: center; justify-content: center; cursor: pointer; user-select: none; transition: background 0.1s, transform 0.1s; }
+.action-btn:active { background: rgba(255,255,255,0.35); transform: scale(0.92); }
+.action-btn.active { background: rgba(0,210,211,0.4); border-color: #00d2d3; }
+.action-btn .btn-label { position: absolute; bottom: -16px; font-size: 0.6rem; color: #aaa; white-space: nowrap; }
+#cameraZone { position: fixed; top: 0; right: 0; width: 60%; height: 70%; z-index: 5; pointer-events: auto; }
+#inventoryPanel { position: fixed; inset: 0; z-index: 100; background: rgba(10,10,26,0.92); display: none; flex-direction: column; align-items: center; justify-content: center; }
+#inventoryPanel.active { display: flex; }
+.inv-title { font-size: 1.6rem; color: #feca57; margin-bottom: 20px; }
+.inv-grid { display: grid; grid-template-columns: repeat(4, 65px); gap: 8px; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; }
+.inv-slot { width: 65px; height: 65px; background: rgba(255,255,255,0.08); border: 2px solid rgba(255,255,255,0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; cursor: pointer; position: relative; }
+.inv-slot.selected { border-color: #feca57; background: rgba(254,202,87,0.15); }
+.inv-slot .slot-count { position: absolute; bottom: 2px; right: 4px; font-size: 0.65rem; color: #fff; font-weight: 700; }
+.inv-actions { margin-top: 20px; display: flex; gap: 12px; }
+.inv-action-btn { padding: 10px 24px; background: #e94560; border: none; border-radius: 8px; color: white; font-size: 0.9rem; font-weight: 700; cursor: pointer; }
+.inv-action-btn.use { background: #00d2d3; }
+#pauseMenu { position: fixed; inset: 0; z-index: 150; background: rgba(10,10,26,0.9); display: none; flex-direction: column; align-items: center; justify-content: center; }
+#pauseMenu.active { display: flex; }
+.pause-title { font-size: 2rem; color: #fff; margin-bottom: 30px; }
+#crosshair { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 20px; height: 20px; z-index: 15; pointer-events: none; }
+#crosshair::before, #crosshair::after { content: ''; position: absolute; background: rgba(255,255,255,0.6); }
+#crosshair::before { width: 2px; height: 14px; left: 9px; top: 3px; }
+#crosshair::after { width: 14px; height: 2px; left: 3px; top: 9px; }
+#neighborIndicator { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 3rem; z-index: 12; pointer-events: none; display: none; animation: indicatorPulse 0.5s ease infinite alternate; }
+#neighborIndicator.active { display: block; }
+@keyframes indicatorPulse { from { transform: translate(-50%, -50%) scale(1); opacity: 0.8; } to { transform: translate(-50%, -50%) scale(1.3); opacity: 1; } }
+#portraitWarning { position: fixed; inset: 0; z-index: 2000; background: #0a0a1a; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+#portraitWarning.active { display: flex; }
+.portrait-icon { font-size: 4rem; margin-bottom: 15px; }
+.portrait-text { color: #fff; font-size: 1.1rem; text-align: center; }
+#fpsCounter { position: fixed; top: 12px; right: 12px; z-index: 30; font-size: 0.7rem; color: #00ff88; font-family: monospace; background: rgba(0,0,0,0.5); padding: 4px 8px; border-radius: 4px; }
+#gamepadIndicator { position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%); z-index: 30; font-size: 0.7rem; color: #888; background: rgba(0,0,0,0.5); padding: 4px 10px; border-radius: 4px; display: none; }
+#gamepadIndicator.active { display: block; }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
+</head>
+<body>
+<div id="loadingScreen">
+  <div class="loading-title">HELLO NEIGHBOR</div>
+  <div class="loading-sub">Mobile Edition</div>
+  <div class="loading-bar-container"><div class="loading-bar" id="loadingBar"></div></div>
+  <div class="loading-text" id="loadingText">Loading world...</div>
+</div>
+
+<div id="mainMenu">
+  <div class="menu-title">HELLO<br>NEIGHBOR</div>
+  <div class="menu-subtitle">Mobile Edition</div>
+  <button class="menu-btn" id="btnPlay">PLAY</button>
+  <button class="menu-btn secondary" id="btnControls">CONTROLS</button>
+  <button class="menu-btn settings" id="btnSettings">SETTINGS</button>
+  <div class="menu-version">v1.0 Mobile</div>
+</div>
+
+<div id="settingsPanel">
+  <div class="settings-title">SETTINGS</div>
+  <div class="setting-row"><span class="setting-label">Sensitivity</span><input type="range" class="setting-slider" id="sensSlider" min="1" max="10" value="5"></div>
+  <div class="setting-row"><span class="setting-label">Volume</span><input type="range" class="setting-slider" id="volSlider" min="0" max="10" value="7"></div>
+  <div class="setting-row"><span class="setting-label">High Quality</span><div class="setting-toggle active" id="toggleQuality"></div></div>
+  <div class="setting-row"><span class="setting-label">Shadows</span><div class="setting-toggle active" id="toggleShadows"></div></div>
+  <div class="setting-row"><span class="setting-label">Vibration</span><div class="setting-toggle active" id="toggleVibro"></div></div>
+  <button class="menu-btn" style="margin-top:25px;width:200px;" id="btnSettingsBack">BACK</button>
+</div>
+
+<div id="hud">
+  <div class="noise-bar-container"><div class="noise-bar" id="noiseBar"></div></div>
+  <div class="noise-label">NOISE</div>
+  <div class="health-container"><span class="health-heart">HP</span><span class="health-text" id="healthText">100%</span></div>
+  <div class="item-hand" id="itemHand">--</div>
+  <div id="notificationArea"></div>
+  <div id="crosshair"></div>
+  <div id="neighborIndicator">!</div>
+  <div id="fpsCounter">FPS: --</div>
+  <div id="gamepadIndicator">GAMEPAD CONNECTED</div>
+</div>
+
+<div id="joystickZone" class="touch-controls">
+  <div class="joystick-base" id="joystickBase"></div>
+  <div class="joystick-knob" id="joystickKnob"></div>
+</div>
+
+<div id="cameraZone"></div>
+
+<div id="actionButtons" class="touch-controls">
+  <div class="action-btn" id="btnJump" style="position:relative">J<span class="btn-label">Jump</span></div>
+  <div class="action-btn" id="btnCrouch" style="position:relative">C<span class="btn-label">Crouch</span></div>
+  <div class="action-btn" id="btnInteract" style="position:relative">E<span class="btn-label">Use</span></div>
+  <div class="action-btn" id="btnInventory" style="position:relative">I<span class="btn-label">Inv</span></div>
+  <div class="action-btn" id="btnFlashlight" style="position:relative;grid-column:1/3;width:128px;border-radius:30px">F<span class="btn-label">Flashlight</span></div>
+</div>
+
+<div id="inventoryPanel">
+  <div class="inv-title">INVENTORY</div>
+  <div class="inv-grid" id="invGrid"></div>
+  <div class="inv-actions">
+    <button class="inv-action-btn use" id="btnUseItem">USE</button>
+    <button class="inv-action-btn" id="btnDropItem">DROP</button>
+    <button class="inv-action-btn" style="background:#533483" id="btnCloseInv">CLOSE</button>
+  </div>
+</div>
+
+<div id="caughtScreen">
+  <div class="caught-title">CAUGHT!</div>
+  <div class="caught-sub">The neighbor got you!</div>
+  <button class="menu-btn" id="btnRespawn">RESPAWN</button>
+</div>
+
+<div id="pauseMenu">
+  <div class="pause-title">PAUSED</div>
+  <button class="menu-btn" id="btnResume">RESUME</button>
+  <button class="menu-btn secondary" id="btnRestart">RESTART</button>
+  <button class="menu-btn settings" id="btnQuit">QUIT</button>
+</div>
+
+<div id="portraitWarning">
+  <div class="portrait-icon">ROTATE</div>
+  <div class="portrait-text">Rotate device to landscape for best experience</div>
+</div>
+
+<script>
+let scene, camera, renderer, world;
+let player, playerBody, neighbor, neighborBody;
+let flashlight, flashlightLight;
+let isGameRunning = false;
+let isPaused = false;
+let gamepadConnected = false;
+
+let settings = {
+  sensitivity: 5,
+  volume: 0.7,
+  highQuality: true,
+  shadows: true,
+  vibration: true,
+  fpsLimit: 30
+};
+
+let inventory = [];
+let selectedSlot = -1;
+let maxSlots = 12;
+
+let playerState = {
+  health: 100,
+  noise: 0,
+  crouching: false,
+  running: false,
+  canJump: true,
+  itemInHand: null,
+  flashlightOn: false
+};
+
+let neighborState = {
+  state: 'patrol',
+  targetPos: new THREE.Vector3(),
+  patrolIndex: 0,
+  suspicion: 0,
+  lastHeardPos: null,
+  chaseTimer: 0,
+  speed: 2.5,
+  traps: [],
+  memory: []
+};
+
+let houseObjects = [];
+let interactiveObjects = [];
+let doors = [];
+let items = [];
+
+let joystick = { active: false, x: 0, y: 0, originX: 0, originY: 0 };
+let cameraTouch = { active: false, lastX: 0, lastY: 0 };
+let playerRotation = { x: 0, y: 0 };
+
+let audioCtx = null;
+
+function init() {
+  updateLoading(10, 'Init Three.js...');
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0a0a1a);
+  scene.fog = new THREE.Fog(0x0a0a1a, 10, 60);
+  camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
+  camera.position.set(-8, 1.7, 8);
+  renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'low-power' });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = settings.shadows;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  document.body.appendChild(renderer.domElement);
+  renderer.domElement.id = 'gameCanvas';
+  updateLoading(20, 'Physics world...');
+  world = new CANNON.World();
+  world.gravity.set(0, -9.82, 0);
+  world.broadphase = new CANNON.NaiveBroadphase();
+  world.solver.iterations = 5;
+  updateLoading(30, 'Creating world...');
+  createWorld();
+  updateLoading(50, 'Creating player...');
+  createPlayer();
+  updateLoading(60, 'Creating neighbor...');
+  createNeighbor();
+  updateLoading(70, 'Lighting...');
+  setupLighting();
+  updateLoading(80, 'Inventory...');
+  initInventory();
+  updateLoading(90, 'UI...');
+  setupUI();
+  setupControls();
+  setupAudio();
+  updateLoading(100, 'Ready!');
+  requestAnimationFrame(gameLoop);
+  setTimeout(() => { document.getElementById('loadingScreen').classList.add('hidden'); }, 800);
+}
+
+function updateLoading(percent, text) {
+  document.getElementById('loadingBar').style.width = percent + '%';
+  document.getElementById('loadingText').textContent = text;
+}
+
+function createWorld() {
+  const matGrass = new THREE.MeshLambertMaterial({ color: 0x2d5016 });
+  const matWall = new THREE.MeshLambertMaterial({ color: 0x8B7355 });
+  const matWallExt = new THREE.MeshLambertMaterial({ color: 0xC4A77D });
+  const matFloor = new THREE.MeshLambertMaterial({ color: 0x6B4423 });
+  const matFloor2 = new THREE.MeshLambertMaterial({ color: 0x8B6914 });
+  const matRoof = new THREE.MeshLambertMaterial({ color: 0x4a3728 });
+  const matWindow = new THREE.MeshLambertMaterial({ color: 0x87CEEB, transparent: true, opacity: 0.6 });
+  const matDoor = new THREE.MeshLambertMaterial({ color: 0x5C4033 });
+  const matFence = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+  const matRoad = new THREE.MeshLambertMaterial({ color: 0x555555 });
+  const matTree = new THREE.MeshLambertMaterial({ color: 0x1a472a });
+  const matTrunk = new THREE.MeshLambertMaterial({ color: 0x4a3728 });
+  const groundGeo = new THREE.PlaneGeometry(80, 80);
+  const ground = new THREE.Mesh(groundGeo, matGrass);
+  ground.rotation.x = -Math.PI / 2;
+  ground.receiveShadow = true;
+  scene.add(ground);
+  const groundShape = new CANNON.Plane();
+  const groundBody = new CANNON.Body({ mass: 0 });
+  groundBody.addShape(groundShape);
+  groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1,0,0), -Math.PI/2);
+  world.addBody(groundBody);
+  const road = new THREE.Mesh(new THREE.PlaneGeometry(80, 6), matRoad);
+  road.rotation.x = -Math.PI / 2;
+  road.position.set(0, 0.01, 18);
+  scene.add(road);
+  const house = new THREE.Group();
+  scene.add(house);
+  const houseW = 10, houseD = 8, houseH = 3.5;
+  const floorY = 0;
+  const floor2Y = 3.5;
+  const foundation = new THREE.Mesh(new THREE.BoxGeometry(houseW + 0.4, 0.3, houseD + 0.4), new THREE.MeshLambertMaterial({color: 0x555555}));
+  foundation.position.y = 0.15;
+  house.add(foundation);
+  createWall(house, -houseW/2, 1.75, 0, 0.2, houseH, houseD, matWallExt);
+  createWall(house, houseW/2, 1.75, 0, 0.2, houseH, houseD, matWallExt);
+  createWall(house, 0, 1.75, -houseD/2, houseW, houseH, 0.2, matWallExt);
+  createWall(house, 0, 1.75, houseD/2, houseW, houseH, 0.2, matWallExt);
+  createWall(house, 0, 1.75, 0, 0.15, houseH, houseD, matWall);
+  createWall(house, -2.5, 1.75, 2, 5, houseH, 0.15, matWall);
+  createWall(house, -houseW/2, 1.75 + houseH, 0, 0.2, houseH, houseD, matWallExt);
+  createWall(house, houseW/2, 1.75 + houseH, 0, 0.2, houseH, houseD, matWallExt);
+  createWall(house, 0, 1.75 + houseH, -houseD/2, houseW, houseH, 0.2, matWallExt);
+  createWall(house, 0, 1.75 + houseH, houseD/2, houseW, houseH, 0.2, matWallExt);
+  createWall(house, 2, 1.75 + houseH, 0, 0.15, houseH, houseD, matWall);
+  const floor1 = new THREE.Mesh(new THREE.BoxGeometry(houseW, 0.2, houseD), matFloor);
+  floor1.position.y = floorY;
+  house.add(floor1);
+  const floor2 = new THREE.Mesh(new THREE.BoxGeometry(houseW, 0.2, houseD), matFloor2);
+  floor2.position.y = floor2Y;
+  house.add(floor2);
+  const floor3 = new THREE.Mesh(new THREE.BoxGeometry(houseW, 0.2, houseD), matFloor);
+  floor3.position.y = floor2Y + houseH;
+  house.add(floor3);
+  const roofGeo = new THREE.ConeGeometry(7, 3, 4);
+  const roof = new THREE.Mesh(roofGeo, matRoof);
+  roof.position.y = floor2Y + houseH + 1.5;
+  roof.rotation.y = Math.PI / 4;
+  roof.scale.set(1, 0.6, 1.3);
+  house.add(roof);
+  const garageW = 5, garageD = 6;
+  createWall(house, houseW/2 + garageW/2, 1.5, -1, garageW, 3, 0.2, matWallExt);
+  createWall(house, houseW/2 + garageW, 1.5, -1 + garageD/2, 0.2, 3, garageD, matWallExt);
+  createWall(house, houseW/2 + garageW/2, 1.5, -1 + garageD, garageW, 3, 0.2, matWallExt);
+  const garageFloor = new THREE.Mesh(new THREE.BoxGeometry(garageW, 0.2, garageD), new THREE.MeshLambertMaterial({color: 0x666666}));
+  garageFloor.position.set(houseW/2 + garageW/2, 0, -1 + garageD/2);
+  house.add(garageFloor);
+  const garageDoor = createDoor(houseW/2 + garageW/2, 1.5, -1 + garageD - 0.1, garageW - 0.4, 2.5, 0.1, matDoor, 'garage');
+  doors.push(garageDoor);
+  const windowPositions = [
+    [-3, 2.5, houseD/2], [3, 2.5, houseD/2],
+    [-houseW/2, 2.5, -2], [-houseW/2, 2.5, 2],
+    [houseW/2, 2.5, -2], [houseW/2, 2.5, 2],
+    [-3, 6, houseD/2], [3, 6, houseD/2],
+    [houseW/2 + garageW, 2, -1 + garageD/2]
+  ];
+  windowPositions.forEach(pos => {
+    const win = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.2, 0.1), matWindow);
+    win.position.set(...pos);
+    if (Math.abs(pos[0]) > houseW/2 - 0.5) win.rotation.y = Math.PI/2;
+    house.add(win);
+  });
+  const frontDoor = createDoor(0, 1.25, houseD/2, 1.2, 2.5, 0.1, matDoor, 'front');
+  doors.push(frontDoor);
+  const kitchenDoor = createDoor(-2.5, 1.25, 2, 1, 2.5, 0.1, matDoor, 'kitchen');
+  doors.push(kitchenDoor);
+  const bedroomDoor = createDoor(2, 1.25 + houseH, 0, 1, 2.5, 0.1, matDoor, 'bedroom');
+  doors.push(bedroomDoor);
+  const basementDoor = createDoor(4, 1.25, 0, 1, 2.5, 0.1, new THREE.MeshLambertMaterial({color: 0x330000}), 'basement', true);
+  doors.push(basementDoor);
+  const atticHatch = createDoor(0, floor2Y + houseH - 0.1, 0, 1.5, 1.5, 0.1, matDoor, 'attic');
+  atticHatch.mesh.rotation.x = Math.PI/2;
+  doors.push(atticHatch);
+  for (let x = -20; x <= 20; x += 2) {
+    if (Math.abs(x) > 2) {
+      const fencePost = new THREE.Mesh(new THREE.BoxGeometry(0.15, 2, 0.15), matFence);
+      fencePost.position.set(x, 1, 12);
+      scene.add(fencePost);
+      const fencePanel = new THREE.Mesh(new THREE.BoxGeometry(2, 1.5, 0.05), matFence);
+      fencePanel.position.set(x + 1, 0.75, 12);
+      scene.add(fencePanel);
+    }
+  }
+  for (let z = -10; z <= 12; z += 2) {
+    const fencePost = new THREE.Mesh(new THREE.BoxGeometry(0.15, 2, 0.15), matFence);
+    fencePost.position.set(-20, 1, z);
+    scene.add(fencePost);
+    const fencePost2 = new THREE.Mesh(new THREE.BoxGeometry(0.15, 2, 0.15), matFence);
+    fencePost2.position.set(20, 1, z);
+    scene.add(fencePost2);
+  }
+  const treePositions = [[-15, 0, -8], [18, 0, -5], [-12, 0, 5], [15, 0, 8], [-18, 0, -2], [22, 0, 2]];
+  treePositions.forEach(pos => {
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 2, 6), matTrunk);
+    trunk.position.set(pos[0], 1, pos[2]);
+    scene.add(trunk);
+    const leaves = new THREE.Mesh(new THREE.ConeGeometry(2, 4, 6), matTree);
+    leaves.position.set(pos[0], 3.5, pos[2]);
+    scene.add(leaves);
+  });
+  createFurniture(new THREE.BoxGeometry(2, 0.1, 1), new THREE.MeshLambertMaterial({color: 0x8B4513}), -3.5, 0.5, 1, 'table');
+  createFurniture(new THREE.BoxGeometry(0.4, 0.8, 0.4), new THREE.MeshLambertMaterial({color: 0x654321}), -3, 0.4, 1.5, 'chair');
+  createFurniture(new THREE.BoxGeometry(0.4, 0.8, 0.4), new THREE.MeshLambertMaterial({color: 0x654321}), -4, 0.4, 1.5, 'chair');
+  createFurniture(new THREE.BoxGeometry(1, 2, 0.8), new THREE.MeshLambertMaterial({color: 0xCCCCCC}), -4.5, 1, -2.5, 'fridge', true);
+  const tv = createFurniture(new THREE.BoxGeometry(1.5, 0.9, 0.3), new THREE.MeshLambertMaterial({color: 0x111111}), 3, 1.2, 3, 'tv');
+  const tvScreen = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 0.7), new THREE.MeshBasicMaterial({color: 0x4444ff}));
+  tvScreen.position.set(0, 0, 0.16);
+  tv.add(tvScreen);
+  createFurniture(new THREE.BoxGeometry(2, 0.6, 1.5), new THREE.MeshLambertMaterial({color: 0x4169E1}), 3.5, floor2Y + 0.3, -2, 'bed');
+  createFurniture(new THREE.BoxGeometry(0.5, 1.2, 0.1), new THREE.MeshLambertMaterial({color: 0x8B4513}), 3.5, floor2Y + 0.6, -2.8, 'bedboard');
+  createFurniture(new THREE.BoxGeometry(1.2, 0.8, 2), new THREE.MeshLambertMaterial({color: 0xFFFFFF}), -3.5, floor2Y + 0.4, -2, 'bath');
+  createFurniture(new THREE.BoxGeometry(2.5, 0.6, 1), new THREE.MeshLambertMaterial({color: 0x8B0000}), 0, 0.3, 3, 'sofa');
+  createFurniture(new THREE.BoxGeometry(0.4, 2, 1.5), new THREE.MeshLambertMaterial({color: 0x5C4033}), 4.5, 1, 2, 'bookshelf');
+  for (let i = 0; i < 8; i++) {
+    const box = createPhysicsBox((Math.random() - 0.5) * 6, 0.5, (Math.random() - 0.5) * 6, 0.4 + Math.random() * 0.3);
+    items.push({ mesh: box.mesh, body: box.body, type: 'box', name: 'Box' });
+  }
+  spawnItem(-4, 0.3, 3, 'KEY', 'Basement Key', 'basement_key');
+  spawnItem(3.5, floor2Y + 0.3, -1, 'WRENCH', 'Wrench', 'wrench');
+  spawnItem(0, 0.3, -3, 'FLASH', 'Flashlight', 'flashlight');
+  spawnItem(-3.5, floor2Y + 0.3, 2, 'PICK', 'Lockpick', 'lockpick');
+  spawnItem(4.5, 1.5, 2, 'HAMMER', 'Hammer', 'hammer');
+  createTrap(2, 0.1, 2);
+  createTrap(-2, floor2Y + 0.1, -1);
+  const houseBody = new CANNON.Body({ mass: 0 });
+  houseBody.addShape(new CANNON.Box(new CANNON.Vec3(houseW/2, 0.1, houseD/2)), new CANNON.Vec3(0, -0.1, 0));
+  world.addBody(houseBody);
+}
+
+function createWall(parent, x, y, z, w, h, d, material) {
+  const wall = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
+  wall.position.set(x, y, z);
+  wall.castShadow = true;
+  wall.receiveShadow = true;
+  parent.add(wall);
+  const shape = new CANNON.Box(new CANNON.Vec3(w/2, h/2, d/2));
+  const body = new CANNON.Body({ mass: 0 });
+  body.addShape(shape, new CANNON.Vec3(x, y, z));
+  world.addBody(body);
+  houseObjects.push({ mesh: wall, body: body });
+  return wall;
+}
+
+function createDoor(x, y, z, w, h, d, material, id, locked) {
+  locked = locked || false;
+  const doorGroup = new THREE.Group();
+  doorGroup.position.set(x, y, z);
+  const doorMesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
+  doorMesh.castShadow = true;
+  doorGroup.add(doorMesh);
+  const handle = new THREE.Mesh(new THREE.SphereGeometry(0.08), new THREE.MeshLambertMaterial({color: 0xFFD700}));
+  handle.position.set(w/2 - 0.15, 0, d/2 + 0.05);
+  doorGroup.add(handle);
+  scene.add(doorGroup);
+  return { mesh: doorGroup, id: id, open: false, locked: locked, angle: 0, targetAngle: 0, position: new THREE.Vector3(x, y, z), width: w };
+}
+
+function createFurniture(geometry, material, x, y, z, type, interactive) {
+  interactive = interactive || false;
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.set(x, y, z);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  scene.add(mesh);
+  const box = new THREE.Box3().setFromObject(mesh);
+  const size = new THREE.Vector3();
+  box.getSize(size);
+  const shape = new CANNON.Box(new CANNON.Vec3(size.x/2, size.y/2, size.z/2));
+  const body = new CANNON.Body({ mass: 0 });
+  body.addShape(shape, new CANNON.Vec3(x, y, z));
+  world.addBody(body);
+  if (interactive) interactiveObjects.push({ mesh, body, type, name: type });
+  return mesh;
+}
+
+function createPhysicsBox(x, y, z, size) {
+  const geometry = new THREE.BoxGeometry(size, size, size);
+  const material = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.set(x, y, z);
+  mesh.castShadow = true;
+  scene.add(mesh);
+  const shape = new CANNON.Box(new CANNON.Vec3(size/2, size/2, size/2));
+  const body = new CANNON.Body({ mass: 5 });
+  body.addShape(shape);
+  body.position.set(x, y, z);
+  world.addBody(body);
+  return { mesh, body };
+}
+
+function spawnItem(x, y, z, emoji, name, id) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128; canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, 128, 64);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 20px Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(emoji, 64, 32);
+  const texture = new THREE.CanvasTexture(canvas);
+  const material = new THREE.SpriteMaterial({ map: texture });
+  const sprite = new THREE.Sprite(material);
+  sprite.position.set(x, y + 0.3, z);
+  sprite.scale.set(0.8, 0.4, 1);
+  scene.add(sprite);
+  const light = new THREE.PointLight(0xffff00, 0.5, 2);
+  light.position.set(x, y + 0.5, z);
+  scene.add(light);
+  items.push({ mesh: sprite, light: light, position: new THREE.Vector3(x, y, z), emoji: emoji, name: name, id: id, collected: false });
+}
+
+function createTrap(x, y, z) {
+  const trap = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.1, 0.8), new THREE.MeshLambertMaterial({ color: 0x8B0000 }));
+  trap.position.set(x, y, z);
+  scene.add(trap);
+  neighborState.traps.push({ mesh: trap, position: new THREE.Vector3(x, y, z), active: true });
+}
+
+function createPlayer() {
+  const playerGeo = new THREE.CylinderGeometry(0.3, 0.3, 1.7, 8);
+  const playerMat = new THREE.MeshLambertMaterial({ color: 0x4169E1 });
+  player = new THREE.Mesh(playerGeo, playerMat);
+  player.position.set(-8, 1.7, 8);
+  player.castShadow = true;
+  scene.add(player);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.25), new THREE.MeshLambertMaterial({color: 0xFFDBAC}));
+  head.position.y = 0.9;
+  player.add(head);
+  const shape = new CANNON.Sphere(0.4);
+  playerBody = new CANNON.Body({ mass: 70, position: new CANNON.Vec3(-8, 1.7, 8), fixedRotation: true });
+  playerBody.addShape(shape, new CANNON.Vec3(0, -0.5, 0));
+  playerBody.linearDamping = 0.9;
+  world.addBody(playerBody);
+  flashlight = new THREE.Group();
+  flashlight.position.set(0.3, 0.7, -0.4);
+  player.add(flashlight);
+  const flashMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.08, 0.3), new THREE.MeshLambertMaterial({color: 0x333333}));
+  flashMesh.rotation.x = Math.PI/2;
+  flashlight.add(flashMesh);
+  flashlightLight = new THREE.SpotLight(0xffffee, 0, 15, Math.PI/4, 0.5, 1);
+  flashlightLight.position.set(0, 0, 0);
+  flashlightLight.target.position.set(0, 0, -1);
+  flashlight.add(flashlightLight);
+  flashlight.add(flashlightLight.target);
+}
+
+function createNeighbor() {
+  const neighborGroup = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.7, 1.8, 8), new THREE.MeshLambertMaterial({ color: 0xFFB6C1 }));
+  body.position.y = 0.9;
+  neighborGroup.add(body);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.35), new THREE.MeshLambertMaterial({color: 0xFFDBAC}));
+  head.position.y = 2;
+  neighborGroup.add(head);
+  const mustache = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.05, 0.1), new THREE.MeshLambertMaterial({color: 0x333333}));
+  mustache.position.set(0, 1.85, 0.3);
+  neighborGroup.add(mustache);
+  const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.05), new THREE.MeshBasicMaterial({color: 0x000000}));
+  eyeL.position.set(-0.12, 2.05, 0.3);
+  neighborGroup.add(eyeL);
+  const eyeR = new THREE.Mesh(new THREE.SphereGeometry(0.05), new THREE.MeshBasicMaterial({color: 0x000000}));
+  eyeR.position.set(0.12, 2.05, 0.3);
+  neighborGroup.add(eyeR);
+  const hat = new THREE.Mesh(new THREE.ConeGeometry(0.4, 0.3, 8), new THREE.MeshLambertMaterial({color: 0x5C4033}));
+  hat.position.y = 2.4;
+  neighborGroup.add(hat);
+  const exclCanvas = document.createElement('canvas');
+  exclCanvas.width = 64; exclCanvas.height = 64;
+  const ctx = exclCanvas.getContext('2d');
+  ctx.font = 'bold 48px Arial';
+  ctx.fillStyle = 'red';
+  ctx.textAlign = 'center';
+  ctx.fillText('!', 32, 48);
+  const exclTex = new THREE.CanvasTexture(exclCanvas);
+  const exclSprite = new THREE.Sprite(new THREE.SpriteMaterial({map: exclTex}));
+  exclSprite.position.set(0, 3, 0);
+  exclSprite.scale.set(0.5, 0.5, 0.5);
+  exclSprite.visible = false;
+  neighborGroup.add(exclSprite);
+  neighborGroup.position.set(2, 0, 0);
+  scene.add(neighborGroup);
+  const shape = new CANNON.Sphere(0.5);
+  neighborBody = new CANNON.Body({ mass: 80, position: new CANNON.Vec3(2, 0.5, 0), fixedRotation: true });
+  neighborBody.addShape(shape, new CANNON.Vec3(0, 1, 0));
+  neighborBody.linearDamping = 0.95;
+  world.addBody(neighborBody);
+  neighbor = {
+    mesh: neighborGroup,
+    body: neighborBody,
+    exclamation: exclSprite,
+    patrolPoints: [
+      new THREE.Vector3(2, 0, 0), new THREE.Vector3(-2, 0, 2),
+      new THREE.Vector3(2, 0, -2), new THREE.Vector3(-2, 0, -2),
+      new THREE.Vector3(0, 3.5, 0), new THREE.Vector3(3, 3.5, -2)
+    ]
+  };
+}
+
+function setupLighting() {
+  const ambient = new THREE.AmbientLight(0x404060, 0.4);
+  scene.add(ambient);
+  const moon = new THREE.DirectionalLight(0x6688cc, 0.5);
+  moon.position.set(-20, 30, -10);
+  moon.castShadow = settings.shadows;
+  if (settings.shadows) {
+    moon.shadow.mapSize.width = 1024;
+    moon.shadow.mapSize.height = 1024;
+    moon.shadow.camera.near = 0.5;
+    moon.shadow.camera.far = 50;
+    moon.shadow.camera.left = -25;
+    moon.shadow.camera.right = 25;
+    moon.shadow.camera.top = 25;
+    moon.shadow.camera.bottom = -25;
+  }
+  scene.add(moon);
+  const houseLights = [
+    { pos: [0, 2.5, 0], color: 0xffaa77, intensity: 0.6 },
+    { pos: [-3, 2.5, 1], color: 0xffddaa, intensity: 0.5 },
+    { pos: [3, 2.5, -1], color: 0xffddaa, intensity: 0.5 },
+    { pos: [0, 6, 0], color: 0xffaa77, intensity: 0.5 },
+    { pos: [-3, 6, 1], color: 0xffddaa, intensity: 0.4 },
+    { pos: [3, 6, -1], color: 0xffddaa, intensity: 0.4 }
+  ];
+  houseLights.forEach(l => {
+    const light = new THREE.PointLight(l.color, l.intensity, 8);
+    light.position.set(...l.pos);
+    scene.add(light);
+  });
+  const windowGlow = new THREE.PointLight(0x87CEEB, 0.3, 5);
+  windowGlow.position.set(0, 2.5, 5);
+  scene.add(windowGlow);
+}
+
+function initInventory() {
+  const grid = document.getElementById('invGrid');
+  grid.innerHTML = '';
+  for (let i = 0; i < maxSlots; i++) {
+    const slot = document.createElement('div');
+    slot.className = 'inv-slot';
+    slot.dataset.index = i;
+    slot.addEventListener('click', () => selectSlot(i));
+    grid.appendChild(slot);
+  }
+}
+
+function selectSlot(index) {
+  const slots = document.querySelectorAll('.inv-slot');
+  slots.forEach(s => s.classList.remove('selected'));
+  if (inventory[index]) {
+    slots[index].classList.add('selected');
+    selectedSlot = index;
+  } else {
+    selectedSlot = -1;
+  }
+}
+
+function addToInventory(item) {
+  for (let i = 0; i < maxSlots; i++) {
+    if (!inventory[i]) {
+      inventory[i] = item;
+      updateInventoryUI();
+      showNotification('Picked up: ' + item.name, 'success');
+      playSound('pickup');
+      return true;
+    }
+  }
+  showNotification('Inventory full!', 'danger');
+  return false;
+}
+
+function updateInventoryUI() {
+  const slots = document.querySelectorAll('.inv-slot');
+  slots.forEach((slot, i) => {
+    slot.innerHTML = '';
+    slot.classList.remove('selected');
+    if (inventory[i]) {
+      slot.textContent = inventory[i].emoji;
+      if (inventory[i].count > 1) {
+        const count = document.createElement('span');
+        count.className = 'slot-count';
+        count.textContent = inventory[i].count;
+        slot.appendChild(count);
+      }
+    }
+  });
+  if (selectedSlot >= 0 && inventory[selectedSlot]) {
+    slots[selectedSlot].classList.add('selected');
+    document.getElementById('itemHand').textContent = inventory[selectedSlot].emoji;
+    playerState.itemInHand = inventory[selectedSlot];
+  } else {
+    document.getElementById('itemHand').textContent = '--';
+    playerState.itemInHand = null;
+  }
+}
+
+function useItem() {
+  if (selectedSlot < 0 || !inventory[selectedSlot]) return;
+  const item = inventory[selectedSlot];
+  if (item.id === 'flashlight') {
+    toggleFlashlight();
+  } else if (item.id === 'basement_key') {
+    const basementDoor = doors.find(d => d.id === 'basement');
+    if (basementDoor && basementDoor.locked) {
+      const dist = player.position.distanceTo(basementDoor.position);
+      if (dist < 2) {
+        basementDoor.locked = false;
+        showNotification('Door unlocked!', 'success');
+        playSound('unlock');
+        inventory[selectedSlot] = null;
+        updateInventoryUI();
+      } else {
+        showNotification('Get closer to basement door', 'danger');
+      }
+    }
+  } else if (item.id === 'lockpick') {
+    showNotification('Lockpick used', 'success');
+    inventory[selectedSlot] = null;
+    updateInventoryUI();
+  } else if (item.id === 'hammer') {
+    showNotification('Hammer equipped', 'success');
+  } else if (item.id === 'wrench') {
+    showNotification('Wrench equipped', 'success');
+  }
+}
+
+function dropItem() {
+  if (selectedSlot < 0 || !inventory[selectedSlot]) return;
+  const item = inventory[selectedSlot];
+  spawnItem(player.position.x + Math.sin(playerRotation.y) * 1, 0.3, player.position.z + Math.cos(playerRotation.y) * 1, item.emoji, item.name, item.id);
+  inventory[selectedSlot] = null;
+  selectedSlot = -1;
+  updateInventoryUI();
+  showNotification('Item dropped');
+}
+
+function setupUI() {
+  document.getElementById('btnPlay').addEventListener('click', startGame);
+  document.getElementById('btnSettings').addEventListener('click', () => { document.getElementById('settingsPanel').classList.add('active'); });
+  document.getElementById('btnSettingsBack').addEventListener('click', () => { document.getElementById('settingsPanel').classList.remove('active'); });
+  document.getElementById('btnControls').addEventListener('click', () => { showNotification('Controls: Left joystick = move, Right zone = camera, Buttons = actions'); });
+  document.getElementById('sensSlider').addEventListener('input', (e) => { settings.sensitivity = parseInt(e.target.value); });
+  document.getElementById('volSlider').addEventListener('input', (e) => { settings.volume = parseInt(e.target.value) / 10; });
+  const toggles = { 'toggleQuality': 'highQuality', 'toggleShadows': 'shadows', 'toggleVibro': 'vibration' };
+  Object.entries(toggles).forEach(([id, setting]) => {
+    document.getElementById(id).addEventListener('click', function() {
+      this.classList.toggle('active');
+      settings[setting] = this.classList.contains('active');
+    });
+  });
+  document.getElementById('btnJump').addEventListener('touchstart', (e) => { e.preventDefault(); jump(); });
+  document.getElementById('btnJump').addEventListener('mousedown', jump);
+  document.getElementById('btnCrouch').addEventListener('touchstart', (e) => { e.preventDefault(); toggleCrouch(); });
+  document.getElementById('btnCrouch').addEventListener('mousedown', toggleCrouch);
+  document.getElementById('btnInteract').addEventListener('touchstart', (e) => { e.preventDefault(); interact(); });
+  document.getElementById('btnInteract').addEventListener('mousedown', interact);
+  document.getElementById('btnInventory').addEventListener('touchstart', (e) => { e.preventDefault(); toggleInventory(); });
+  document.getElementById('btnInventory').addEventListener('mousedown', toggleInventory);
+  document.getElementById('btnFlashlight').addEventListener('touchstart', (e) => { e.preventDefault(); toggleFlashlight(); });
+  document.getElementById('btnFlashlight').addEventListener('mousedown', toggleFlashlight);
+  document.getElementById('btnUseItem').addEventListener('click', useItem);
+  document.getElementById('btnDropItem').addEventListener('click', dropItem);
+  document.getElementById('btnCloseInv').addEventListener('click', toggleInventory);
+  document.getElementById('btnRespawn').addEventListener('click', respawn);
+  document.getElementById('btnResume').addEventListener('click', togglePause);
+  document.getElementById('btnRestart').addEventListener('click', restartGame);
+  document.getElementById('btnQuit').addEventListener('click', quitToMenu);
+  checkOrientation();
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    checkOrientation();
+  });
+  document.addEventListener('keydown', handleKeyDown);
+  document.addEventListener('keyup', handleKeyUp);
+}
+
+function checkOrientation() {
+  const warning = document.getElementById('portraitWarning');
+  if (window.innerHeight > window.innerWidth) warning.classList.add('active');
+  else warning.classList.remove('active');
+}
+
+function startGame() {
+  document.getElementById('mainMenu').classList.add('hidden');
+  document.getElementById('hud').classList.add('active');
+  isGameRunning = true;
+  isPaused = false;
+  playMusic();
+}
+
+function quitToMenu() {
+  isGameRunning = false;
+  document.getElementById('hud').classList.remove('active');
+  document.getElementById('pauseMenu').classList.remove('active');
+  document.getElementById('mainMenu').classList.remove('hidden');
+}
+
+function restartGame() {
+  playerBody.position.set(-8, 1.7, 8);
+  playerBody.velocity.set(0, 0, 0);
+  playerState.health = 100;
+  playerState.noise = 0;
+  playerState.crouching = false;
+  playerState.flashlightOn = false;
+  flashlightLight.intensity = 0;
+  neighborBody.position.set(2, 0.5, 0);
+  neighborBody.velocity.set(0, 0, 0);
+  neighborState.state = 'patrol';
+  neighborState.suspicion = 0;
+  neighborState.chaseTimer = 0;
+  neighbor.mesh.position.set(2, 0, 0);
+  items.forEach(item => {
+    if (item.collected) {
+      item.collected = false;
+      item.mesh.visible = true;
+      item.light.visible = true;
+    }
+  });
+  doors.forEach(door => {
+    door.open = false;
+    door.angle = 0;
+    door.targetAngle = 0;
+    door.mesh.rotation.y = 0;
+  });
+  inventory = [];
+  selectedSlot = -1;
+  updateInventoryUI();
+  neighborState.traps.forEach(trap => trap.active = true);
+  document.getElementById('caughtScreen').classList.remove('active');
+  document.getElementById('pauseMenu').classList.remove('active');
+  isPaused = false;
+  showNotification('Game restarted');
+}
+
+function respawn() {
+  playerBody.position.set(-8, 1.7, 8);
+  playerBody.velocity.set(0, 0, 0);
+  playerState.health = 100;
+  playerState.noise = 0;
+  document.getElementById('caughtScreen').classList.remove('active');
+  neighborState.state = 'return';
+  neighborState.chaseTimer = 0;
+  showNotification('Respawn at fence');
+}
+
+function setupControls() {
+  const joystickZone = document.getElementById('joystickZone');
+  const joystickKnob = document.getElementById('joystickKnob');
+  joystickZone.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    const touch = e.touches[0];
+    joystick.active = true;
+    joystick.originX = touch.clientX;
+    joystick.originY = touch.clientY;
+  }, {passive: false});
+  joystickZone.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    if (!joystick.active) return;
+    const touch = e.touches[0];
+    const dx = touch.clientX - joystick.originX;
+    const dy = touch.clientY - joystick.originY;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    const maxDist = 45;
+    if (dist > maxDist) {
+      const angle = Math.atan2(dy, dx);
+      joystick.x = Math.cos(angle);
+      joystick.y = Math.sin(angle);
+    } else {
+      joystick.x = dx / maxDist;
+      joystick.y = dy / maxDist;
+    }
+    joystickKnob.style.transform = 'translate(' + (joystick.x * 35) + 'px, ' + (joystick.y * 35) + 'px)';
+  }, {passive: false});
+  joystickZone.addEventListener('touchend', () => {
+    joystick.active = false;
+    joystick.x = 0;
+    joystick.y = 0;
+    joystickKnob.style.transform = 'translate(0, 0)';
+  });
+  const cameraZone = document.getElementById('cameraZone');
+  cameraZone.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    const touch = e.touches[0];
+    cameraTouch.active = true;
+    cameraTouch.lastX = touch.clientX;
+    cameraTouch.lastY = touch.clientY;
+  }, {passive: false});
+  cameraZone.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    if (!cameraTouch.active) return;
+    const touch = e.touches[0];
+    const dx = touch.clientX - cameraTouch.lastX;
+    const dy = touch.clientY - cameraTouch.lastY;
+    const sens = settings.sensitivity * 0.002;
+    playerRotation.y -= dx * sens;
+    playerRotation.x -= dy * sens;
+    playerRotation.x = Math.max(-Math.PI/2.5, Math.min(Math.PI/2.5, playerRotation.x));
+    cameraTouch.lastX = touch.clientX;
+    cameraTouch.lastY = touch.clientY;
+  }, {passive: false});
+  cameraZone.addEventListener('touchend', () => { cameraTouch.active = false; });
+  let lastTap = 0;
+  document.addEventListener('touchend', (e) => {
+    const now = Date.now();
+    if (now - lastTap < 300) {
+      playerState.running = !playerState.running;
+      showNotification(playerState.running ? 'Running!' : 'Walking');
+    }
+    lastTap = now;
+  });
+  let initialPinchDist = 0;
+  document.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 2) {
+      initialPinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+    }
+  });
+  document.addEventListener('touchmove', (e) => {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+      const scale = dist / initialPinchDist;
+      camera.fov = Math.max(50, Math.min(90, 75 / scale));
+      camera.updateProjectionMatrix();
+    }
+  }, {passive: false});
+  window.addEventListener('gamepadconnected', (e) => {
+    gamepadConnected = true;
+    document.getElementById('gamepadIndicator').classList.add('active');
+    showNotification('Gamepad connected!');
+  });
+  window.addEventListener('gamepaddisconnected', () => {
+    gamepadConnected = false;
+    document.getElementById('gamepadIndicator').classList.remove('active');
+  });
+}
+
+const keys = {};
+function handleKeyDown(e) {
+  keys[e.code] = true;
+  if (e.code === 'Space') jump();
+  if (e.code === 'KeyC') toggleCrouch();
+  if (e.code === 'KeyE') interact();
+  if (e.code === 'KeyI' || e.code === 'Tab') toggleInventory();
+  if (e.code === 'KeyF') toggleFlashlight();
+  if (e.code === 'ShiftLeft') playerState.running = true;
+  if (e.code === 'Escape') togglePause();
+}
+function handleKeyUp(e) {
+  keys[e.code] = false;
+  if (e.code === 'ShiftLeft') playerState.running = false;
+}
+
+function jump() {
+  if (playerState.canJump && Math.abs(playerBody.velocity.y) < 0.5) {
+    playerBody.velocity.y = 5;
+    playerState.canJump = false;
+    playerState.noise = Math.min(100, playerState.noise + 15);
+    playSound('jump');
+    setTimeout(() => playerState.canJump = true, 500);
+  }
+}
+
+function toggleCrouch() {
+  playerState.crouching = !playerState.crouching;
+  const btn = document.getElementById('btnCrouch');
+  if (playerState.crouching) {
+    btn.classList.add('active');
+    player.scale.y = 0.5;
+    playerBody.shapes[0].radius = 0.2;
+  } else {
+    btn.classList.remove('active');
+    player.scale.y = 1;
+    playerBody.shapes[0].radius = 0.4;
+  }
+}
+
+function toggleFlashlight() {
+  playerState.flashlightOn = !playerState.flashlightOn;
+  flashlightLight.intensity = playerState.flashlightOn ? 2 : 0;
+  const btn = document.getElementById('btnFlashlight');
+  btn.classList.toggle('active', playerState.flashlightOn);
+  playSound('click');
+}
+
+function toggleInventory() {
+  const panel = document.getElementById('inventoryPanel');
+  panel.classList.toggle('active');
+  isPaused = panel.classList.contains('active');
+}
+
+function togglePause() {
+  if (!isGameRunning) return;
+  isPaused = !isPaused;
+  document.getElementById('pauseMenu').classList.toggle('active', isPaused);
+}
+
+function interact() {
+  const reach = 2.5;
+  const playerPos = new THREE.Vector3(playerBody.position.x, playerBody.position.y, playerBody.position.z);
+  for (let door of doors) {
+    const dist = playerPos.distanceTo(door.position);
+    if (dist < reach) {
+      if (door.locked) {
+        showNotification('Locked! Need key.', 'danger');
+        playSound('locked');
+        return;
+      }
+      door.open = !door.open;
+      door.targetAngle = door.open ? Math.PI / 2 : 0;
+      playSound(door.open ? 'door_open' : 'door_close');
+      playerState.noise = Math.min(100, playerState.noise + (door.open ? 20 : 10));
+      return;
+    }
+  }
+  for (let item of items) {
+    if (item.collected) continue;
+    const dist = playerPos.distanceTo(item.position);
+    if (dist < reach) {
+      if (addToInventory({ emoji: item.emoji, name: item.name, id: item.id, count: 1 })) {
+        item.collected = true;
+        item.mesh.visible = false;
+        item.light.visible = false;
+      }
+      return;
+    }
+  }
+  for (let obj of interactiveObjects) {
+    const objPos = obj.mesh.position;
+    const dist = playerPos.distanceTo(objPos);
+    if (dist < reach) {
+      if (obj.type === 'fridge') { showNotification('Fridge is empty...'); playSound('fridge'); }
+      else if (obj.type === 'tv') { showNotification('TV is broken'); }
+      else if (obj.type === 'bed') { showNotification('Cannot sleep - neighbor nearby!'); }
+      return;
+    }
+  }
+  showNotification('Nothing to interact');
+}
+
+function updateNeighborAI(dt) {
+  const neighborPos = new THREE.Vector3(neighborBody.position.x, 0, neighborBody.position.z);
+  const playerPos = new THREE.Vector3(playerBody.position.x, 0, playerBody.position.z);
+  const distToPlayer = neighborPos.distanceTo(playerPos);
+  switch(neighborState.state) {
+    case 'patrol':
+      neighbor.exclamation.visible = false;
+      neighborState.speed = 1.5;
+      const target = neighbor.patrolPoints[neighborState.patrolIndex];
+      moveToTarget(target, dt);
+      if (neighborPos.distanceTo(target) < 1) neighborState.patrolIndex = (neighborState.patrolIndex + 1) % neighbor.patrolPoints.length;
+      if (playerState.noise > 40 || distToPlayer < 5) {
+        neighborState.state = 'suspicious';
+        neighborState.suspicion = 30;
+        neighborState.lastHeardPos = playerPos.clone();
+        showNotification('Neighbor heard noise!', 'danger');
+        playSound('neighbor_notice');
+      }
+      break;
+    case 'suspicious':
+      neighbor.exclamation.visible = true;
+      neighbor.exclamation.material.color.setHex(0xffff00);
+      neighborState.speed = 2;
+      if (neighborState.lastHeardPos) {
+        moveToTarget(neighborState.lastHeardPos, dt);
+        if (neighborPos.distanceTo(neighborState.lastHeardPos) < 1) {
+          neighborState.suspicion -= dt * 10;
+          if (neighborState.suspicion <= 0) { neighborState.state = 'patrol'; neighborState.lastHeardPos = null; }
+        }
+      }
+      if (distToPlayer < 4) {
+        neighborState.state = 'chase';
+        neighborState.chaseTimer = 10;
+        showNotification('NEIGHBOR SAW YOU! RUN!', 'danger');
+        playSound('neighbor_chase');
+        if (settings.vibration && navigator.vibrate) navigator.vibrate([200, 100, 200]);
+      }
+      break;
+    case 'chase':
+      neighbor.exclamation.visible = true;
+      neighbor.exclamation.material.color.setHex(0xff0000);
+      neighborState.speed = 4.5;
+      neighborState.chaseTimer -= dt;
+      moveToTarget(playerPos, dt);
+      if (distToPlayer < 1.2) { catchPlayer(); return; }
+      if (distToPlayer < 3 && Math.random() < 0.02) { createTrap(neighborPos.x, 0.1, neighborPos.z); showNotification('Neighbor set a trap!', 'danger'); }
+      if (neighborState.chaseTimer <= 0) { neighborState.state = 'return'; neighborState.memory.push(playerPos.clone()); }
+      break;
+    case 'return':
+      neighbor.exclamation.visible = false;
+      neighborState.speed = 2;
+      const start = neighbor.patrolPoints[0];
+      moveToTarget(start, dt);
+      if (neighborPos.distanceTo(start) < 1) { neighborState.state = 'patrol'; neighborState.patrolIndex = 0; }
+      break;
+  }
+  neighbor.mesh.position.set(neighborBody.position.x, 0, neighborBody.position.z);
+  const vel = neighborBody.velocity;
+  if (vel.length() > 0.1) { const angle = Math.atan2(vel.x, vel.z); neighbor.mesh.rotation.y = angle; }
+  for (let trap of neighborState.traps) {
+    if (!trap.active) continue;
+    const dist = playerPos.distanceTo(trap.position);
+    if (dist < 0.6) {
+      trap.active = false;
+      trap.mesh.material.color.setHex(0x333333);
+      playerState.health -= 20;
+      showNotification('TRAP!', 'danger');
+      playSound('trap');
+      if (settings.vibration && navigator.vibrate) navigator.vibrate(300);
+      neighborState.state = 'chase';
+      neighborState.chaseTimer = 8;
+      if (playerState.health <= 0) catchPlayer();
+    }
+  }
+}
+
+function moveToTarget(target, dt) {
+  const neighborPos = neighborBody.position;
+  const dx = target.x - neighborPos.x;
+  const dz = target.z - neighborPos.z;
+  const dist = Math.sqrt(dx*dx + dz*dz);
+  if (dist > 0.5) { const speed = neighborState.speed; neighborBody.velocity.x = (dx / dist) * speed; neighborBody.velocity.z = (dz / dist) * speed; }
+  else { neighborBody.velocity.x *= 0.8; neighborBody.velocity.z *= 0.8; }
+}
+
+function catchPlayer() {
+  isGameRunning = false;
+  document.getElementById('caughtScreen').classList.add('active');
+  playSound('caught');
+  if (settings.vibration && navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 500]);
+}
+
+let lastTime = 0;
+let frameCount = 0;
+let fpsTime = 0;
+
+function gameLoop(time) {
+  requestAnimationFrame(gameLoop);
+  const elapsed = time - lastTime;
+  const frameInterval = 1000 / settings.fpsLimit;
+  if (elapsed < frameInterval) return;
+  const dt = Math.min(elapsed / 1000, 0.05);
+  lastTime = time - (elapsed % frameInterval);
+  frameCount++;
+  fpsTime += elapsed;
+  if (fpsTime >= 1000) { document.getElementById('fpsCounter').textContent = 'FPS: ' + frameCount; frameCount = 0; fpsTime = 0; }
+  if (!isGameRunning || isPaused) { renderer.render(scene, camera); return; }
+  world.step(1/60, dt, 3);
+  updatePlayer(dt);
+  updateNeighborAI(dt);
+  doors.forEach(door => { door.angle += (door.targetAngle - door.angle) * 5 * dt; door.mesh.rotation.y = door.angle; });
+  items.forEach(item => { if (!item.collected) item.mesh.position.y = item.position.y + Math.sin(time * 0.003 + item.position.x) * 0.1; });
+  items.forEach(item => { if (item.body) { item.mesh.position.copy(item.body.position); item.mesh.quaternion.copy(item.body.quaternion); } });
+  playerState.noise = Math.max(0, playerState.noise - dt * 15);
+  document.getElementById('noiseBar').style.width = playerState.noise + '%';
+  document.getElementById('healthText').textContent = Math.ceil(playerState.health) + '%';
+  if (gamepadConnected) {
+    const gamepads = navigator.getGamepads();
+    if (gamepads[0]) {
+      const gp = gamepads[0];
+      joystick.x = gp.axes[0] || 0;
+      joystick.y = gp.axes[1] || 0;
+      playerRotation.y -= (gp.axes[2] || 0) * 0.05;
+      playerRotation.x -= (gp.axes[3] || 0) * 0.05;
+      if (gp.buttons[0].pressed) jump();
+      if (gp.buttons[1].pressed) toggleCrouch();
+      if (gp.buttons[2].pressed) interact();
+      if (gp.buttons[3].pressed) toggleFlashlight();
+      if (gp.buttons[9].pressed) togglePause();
+    }
+  }
+  const basementDoor = doors.find(d => d.id === 'basement');
+  if (basementDoor && basementDoor.open && !basementDoor.locked) {
+    const dist = new THREE.Vector3(playerBody.position.x, 0, playerBody.position.z).distanceTo(basementDoor.position);
+    if (dist < 1.5) { showNotification('VICTORY! You entered the basement!', 'success'); isGameRunning = false; setTimeout(() => showNotification('Thanks for playing!'), 2000); }
+  }
+  renderer.render(scene, camera);
+}
+
+function updatePlayer(dt) {
+  let moveX = 0, moveZ = 0;
+  if (joystick.active) { moveX = joystick.x; moveZ = joystick.y; }
+  else {
+    if (keys['KeyW'] || keys['ArrowUp']) moveZ -= 1;
+    if (keys['KeyS'] || keys['ArrowDown']) moveZ += 1;
+    if (keys['KeyA'] || keys['ArrowLeft']) moveX -= 1;
+    if (keys['KeyD'] || keys['ArrowRight']) moveX += 1;
+  }
+  const len = Math.sqrt(moveX*moveX + moveZ*moveZ);
+  if (len > 1) { moveX /= len; moveZ /= len; }
+  const speed = (playerState.running ? 5 : (playerState.crouching ? 1.5 : 3));
+  const forward = new THREE.Vector3(Math.sin(playerRotation.y), 0, Math.cos(playerRotation.y));
+  const right = new THREE.Vector3(Math.cos(playerRotation.y), 0, -Math.sin(playerRotation.y));
+  const velocity = new THREE.Vector3().addScaledVector(forward, -moveZ * speed).addScaledVector(right, moveX * speed);
+  playerBody.velocity.x = velocity.x;
+  playerBody.velocity.z = velocity.z;
+  if (len > 0.1) { const noiseAdd = playerState.running ? 0.8 : (playerState.crouching ? 0.1 : 0.4); playerState.noise = Math.min(100, playerState.noise + noiseAdd); }
+  player.position.set(playerBody.position.x, playerBody.position.y - 0.85, playerBody.position.z);
+  player.rotation.y = playerRotation.y;
+  camera.position.copy(player.position);
+  camera.position.y += playerState.crouching ? 0.5 : 1.5;
+  camera.rotation.order = 'YXZ';
+  camera.rotation.y = playerRotation.y;
+  camera.rotation.x = playerRotation.x;
+  flashlight.rotation.x = playerRotation.x;
+  flashlight.rotation.y = playerRotation.y;
+  if (playerBody.position.y < -5) { playerBody.position.set(-8, 1.7, 8); playerBody.velocity.set(0, 0, 0); }
+}
+
+function setupAudio() { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {} }
+
+function playSound(type) {
+  if (!audioCtx || settings.volume <= 0) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  const now = audioCtx.currentTime;
+  switch(type) {
+    case 'jump':
+      osc.frequency.setValueAtTime(200, now);
+      osc.frequency.exponentialRampToValueAtTime(100, now + 0.1);
+      gain.gain.setValueAtTime(0.2 * settings.volume, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+      osc.start(now); osc.stop(now + 0.1);
+      break;
+    case 'click':
+      osc.frequency.setValueAtTime(800, now);
+      gain.gain.setValueAtTime(0.1 * settings.volume, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+      osc.start(now); osc.stop(now + 0.05);
+      break;
+    case 'door_open':
+      osc.frequency.setValueAtTime(300, now);
+      osc.frequency.linearRampToValueAtTime(150, now + 0.3);
+      gain.gain.setValueAtTime(0.15 * settings.volume, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+      osc.start(now); osc.stop(now + 0.3);
+      break;
+    case 'door_close':
+      osc.frequency.setValueAtTime(150, now);
+      osc.frequency.linearRampToValueAtTime(100, now + 0.2);
+      gain.gain.setValueAtTime(0.15 * settings.volume, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+      osc.start(now); osc.stop(now + 0.2);
+      break;
+    case 'locked':
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(150, now);
+      gain.gain.setValueAtTime(0.2 * settings.volume, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+      osc.start(now); osc.stop(now + 0.15);
+      break;
+    case 'pickup':
+      osc.frequency.setValueAtTime(600, now);
+      osc.frequency.exponentialRampToValueAtTime(1200, now + 0.15);
+      gain.gain.setValueAtTime(0.15 * settings.volume, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+      osc.start(now); osc.stop(now + 0.15);
+      break;
+    case 'neighbor_notice':
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(400, now);
+      osc.frequency.setValueAtTime(500, now + 0.1);
+      gain.gain.setValueAtTime(0.2 * settings.volume, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+      osc.start(now); osc.stop(now + 0.3);
+      break;
+    case 'neighbor_chase':
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(200, now);
+      for (let i = 0; i < 5; i++) osc.frequency.setValueAtTime(200 + i * 100, now + i * 0.1);
+      gain.gain.setValueAtTime(0.25 * settings.volume, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+      osc.start(now); osc.stop(now + 0.5);
+      break;
+    case 'caught':
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(100, now);
+      for (let i = 0; i < 10; i++) osc.frequency.setValueAtTime(100 - i * 8, now + i * 0.1);
+      gain.gain.setValueAtTime(0.3 * settings.volume, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 1);
+      osc.start(now); osc.stop(now + 1);
+      break;
+    case 'trap':
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(800, now);
+      osc.frequency.exponentialRampToValueAtTime(200, now + 0.3);
+      gain.gain.setValueAtTime(0.25 * settings.volume, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+      osc.start(now); osc.stop(now + 0.3);
+      break;
+    case 'fridge':
+      osc.frequency.setValueAtTime(80, now);
+      gain.gain.setValueAtTime(0.1 * settings.volume, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+      osc.start(now); osc.stop(now + 0.2);
+      break;
+    case 'unlock':
+      osc.frequency.setValueAtTime(500, now);
+      osc.frequency.exponentialRampToValueAtTime(800, now + 0.2);
+      gain.gain.setValueAtTime(0.15 * settings.volume, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+      osc.start(now); osc.stop(now + 0.2);
+      break;
+  }
+}
+
+function playMusic() {
+  if (!audioCtx) return;
+  const osc1 = audioCtx.createOscillator();
+  const osc2 = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc1.type = 'sine';
+  osc1.frequency.setValueAtTime(55, audioCtx.currentTime);
+  osc2.type = 'sine';
+  osc2.frequency.setValueAtTime(82.5, audioCtx.currentTime);
+  gain.gain.setValueAtTime(0.03 * settings.volume, audioCtx.currentTime);
+  osc1.connect(gain);
+  osc2.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc1.start();
+  osc2.start();
+  const lfo = audioCtx.createOscillator();
+  lfo.type = 'sine';
+  lfo.frequency.setValueAtTime(0.1, audioCtx.currentTime);
+  const lfoGain = audioCtx.createGain();
+  lfoGain.gain.setValueAtTime(0.02, audioCtx.currentTime);
+  lfo.connect(lfoGain);
+  lfoGain.connect(gain.gain);
+  lfo.start();
+}
+
+function showNotification(text, type) {
+  type = type || '';
+  const area = document.getElementById('notificationArea');
+  const notif = document.createElement('div');
+  notif.className = 'notification ' + type;
+  notif.textContent = text;
+  area.appendChild(notif);
+  setTimeout(() => {
+    notif.style.opacity = '0';
+    notif.style.transform = 'translateY(-10px)';
+    setTimeout(() => notif.remove(), 300);
+  }, 2500);
+}
+
+window.addEventListener('load', init);
+</script>
+</body>
+</html>
