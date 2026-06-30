@@ -3,297 +3,364 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🕵️ Шерлок - Поиск данных</title>
+    <title>DARK TUBE - Твой личный ад</title>
     <style>
-        /* ВСЕ СТИЛИ ТУТ (чтобы не ебаться с отдельным файлом) */
+        /* ===== ГЛОБАЛЬНЫЙ СТИЛЬ ===== */
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: 'Courier New', monospace;
         }
-        
+
         body {
-            background: #0a0a0a;
+            background: #0b0b0f;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            color: #ddd;
+            padding: 20px;
             min-height: 100vh;
             display: flex;
-            justify-content: center;
-            align-items: center;
             flex-direction: column;
-            color: #00ffcc;
-            padding: 20px;
         }
-        
-        .container {
-            background: rgba(10, 10, 10, 0.95);
-            border: 2px solid #00ffcc;
-            border-radius: 16px;
-            padding: 40px;
-            width: 700px;
-            max-width: 100%;
-            box-shadow: 0 0 60px rgba(0, 255, 204, 0.15);
+
+        /* ===== НЕОНОВАЯ ШАПКА ===== */
+        .neon-header {
+            background: linear-gradient(135deg, #0f0f1a 0%, #1a0a1a 100%);
+            padding: 25px 40px;
+            border-radius: 30px;
+            border: 1px solid #ff0066;
+            box-shadow: 0 0 40px rgba(255, 0, 102, 0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 40px;
+            position: relative;
+            overflow: hidden;
         }
-        
-        h1 {
-            font-size: 36px;
-            text-align: center;
-            text-transform: uppercase;
-            letter-spacing: 6px;
-            color: #00ffcc;
-            text-shadow: 0 0 30px rgba(0, 255, 204, 0.3);
-            margin-bottom: 5px;
+
+        .neon-header::before {
+            content: '';
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            background: conic-gradient(from 0deg, transparent, #ff006644, transparent, #ff00aa44, transparent);
+            animation: spin 10s linear infinite;
+            top: -50%;
+            left: -50%;
         }
-        
-        .subtitle {
-            text-align: center;
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .logo {
+            position: relative;
+            z-index: 2;
+            font-size: 42px;
+            font-weight: 900;
+            letter-spacing: 4px;
+            background: linear-gradient(45deg, #ff0066, #ff44aa, #ff0066);
+            background-size: 300%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: shimmer 3s ease-in-out infinite;
+        }
+
+        @keyframes shimmer {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        .logo span {
+            -webkit-text-fill-color: #fff;
+            background: none;
+            font-weight: 300;
+            opacity: 0.5;
+        }
+
+        .header-tagline {
+            position: relative;
+            z-index: 2;
+            background: rgba(255, 0, 102, 0.15);
+            padding: 10px 25px;
+            border-radius: 100px;
+            border: 1px solid #ff0066;
             font-size: 14px;
-            color: #88ffdd;
-            opacity: 0.7;
-            margin-bottom: 30px;
-            border-bottom: 1px dashed rgba(0, 255, 204, 0.2);
-            padding-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #ff66aa;
         }
-        
-        .input-group {
-            margin-bottom: 20px;
+
+        /* ===== КАТЕГОРИИ В СТИЛЕ КИБЕРПАНК ===== */
+        .category-strip {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 35px;
+            justify-content: center;
         }
-        
-        label {
-            display: block;
-            font-size: 13px;
-            color: #88ffdd;
-            margin-bottom: 6px;
+
+        .cat-cyber {
+            background: #14141e;
+            border: 1px solid #2a2a3e;
+            padding: 12px 28px;
+            border-radius: 100px;
+            font-weight: 600;
+            font-size: 16px;
+            color: #aaa;
+            cursor: pointer;
+            transition: 0.25s ease;
             text-transform: uppercase;
             letter-spacing: 1px;
+            backdrop-filter: blur(4px);
+            box-shadow: 0 0 10px rgba(255, 0, 102, 0);
         }
-        
-        input, select {
-            width: 100%;
-            padding: 14px 18px;
-            background: #111;
-            border: 1px solid rgba(0, 255, 204, 0.3);
-            border-radius: 10px;
-            color: #00ffcc;
-            font-size: 16px;
-            outline: none;
-            transition: all 0.3s;
+
+        .cat-cyber:hover {
+            background: #ff0066;
+            color: #0b0b0f;
+            border-color: #ff0066;
+            box-shadow: 0 0 30px #ff006688;
+            transform: scale(1.05);
         }
-        
-        input:focus, select:focus {
-            border-color: #00ffcc;
-            box-shadow: 0 0 25px rgba(0, 255, 204, 0.1);
+
+        .cat-cyber.active {
+            background: #ff0066;
+            color: #0b0b0f;
+            border-color: #ff0066;
+            box-shadow: 0 0 30px #ff006688;
         }
-        
-        input::placeholder {
-            color: #446655;
+
+        /* ===== СЕТКА ВИДЕО ===== */
+        .video-matrix {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 28px;
+            flex: 1;
         }
-        
-        .btn {
-            width: 100%;
-            padding: 16px;
-            margin-top: 10px;
-            background: #00ffcc;
-            color: #0a0a0a;
-            font-weight: bold;
-            font-size: 18px;
-            border: none;
-            border-radius: 10px;
+
+        .video-unit {
+            background: #11111b;
+            border-radius: 24px;
+            overflow: hidden;
+            border: 1px solid #1f1f2f;
+            transition: 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.2);
             cursor: pointer;
-            text-transform: uppercase;
-            letter-spacing: 3px;
-            transition: all 0.3s;
+            position: relative;
         }
-        
-        .btn:hover {
-            background: #00ddbb;
-            box-shadow: 0 0 50px rgba(0, 255, 204, 0.3);
-            transform: scale(1.01);
+
+        .video-unit:hover {
+            transform: translateY(-12px) scale(1.02);
+            border-color: #ff0066;
+            box-shadow: 0 20px 40px rgba(255, 0, 102, 0.25);
         }
-        
-        .btn:active {
-            transform: scale(0.98);
+
+        /* Стиль превью (плеер-заглушка) */
+        .preview-box {
+            width: 100%;
+            height: 200px;
+            background: radial-gradient(circle at 30% 30%, #1a1a2e, #0a0a12);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            border-bottom: 2px solid #1f1f2f;
+            transition: 0.3s;
         }
-        
-        #result {
-            margin-top: 25px;
-            background: #0d0d0d;
-            border: 1px solid rgba(0, 255, 204, 0.15);
-            border-radius: 10px;
-            padding: 20px;
-            min-height: 120px;
-            font-size: 14px;
-            white-space: pre-wrap;
-            word-break: break-all;
-            color: #bbffee;
-            max-height: 400px;
-            overflow-y: auto;
-            line-height: 1.6;
+
+        .video-unit:hover .preview-box {
+            border-bottom-color: #ff0066;
         }
-        
-        #result::-webkit-scrollbar {
-            width: 6px;
+
+        .play-icon {
+            font-size: 60px;
+            color: #ff0066;
+            text-shadow: 0 0 60px #ff006688;
+            transition: 0.3s;
+            opacity: 0.8;
         }
-        
-        #result::-webkit-scrollbar-track {
-            background: #0a0a0a;
+
+        .video-unit:hover .play-icon {
+            transform: scale(1.2);
+            opacity: 1;
+            text-shadow: 0 0 100px #ff0066;
         }
-        
-        #result::-webkit-scrollbar-thumb {
-            background: #00ffcc;
-            border-radius: 3px;
-        }
-        
-        .status {
-            margin-top: 12px;
-            font-size: 13px;
-            color: #ffaa00;
-            text-align: center;
-            min-height: 20px;
-        }
-        
-        .footer {
-            margin-top: 20px;
-            font-size: 11px;
-            color: rgba(0, 255, 204, 0.3);
-            text-align: center;
-            border-top: 1px solid rgba(0, 255, 204, 0.05);
-            padding-top: 15px;
-        }
-        
-        .badge {
-            display: inline-block;
-            background: rgba(0, 255, 204, 0.1);
-            padding: 2px 10px;
+
+        .duration-badge {
+            position: absolute;
+            bottom: 12px;
+            right: 12px;
+            background: #000000bb;
+            padding: 4px 12px;
             border-radius: 20px;
-            font-size: 11px;
-            color: #00ffcc;
-            margin-left: 5px;
+            font-size: 13px;
+            font-weight: bold;
+            color: #fff;
+            border: 1px solid #ff006655;
+            backdrop-filter: blur(4px);
         }
-        
+
+        /* Информация под видео */
+        .video-meta {
+            padding: 16px 18px;
+            background: #0d0d16;
+        }
+
+        .video-meta h3 {
+            font-size: 17px;
+            font-weight: 700;
+            color: #eee;
+            margin-bottom: 6px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .video-meta .views {
+            font-size: 13px;
+            color: #666;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .video-meta .views::before {
+            content: '👁️';
+            font-size: 14px;
+        }
+
+        /* ===== ФУТЕР С ПРИКОЛОМ ===== */
+        .footer-cyber {
+            margin-top: 50px;
+            padding: 20px 30px;
+            border-top: 1px solid #1a1a2a;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            font-size: 13px;
+            color: #444;
+        }
+
+        .footer-cyber a {
+            color: #ff006688;
+            text-decoration: none;
+            transition: 0.2s;
+        }
+
+        .footer-cyber a:hover {
+            color: #ff0066;
+        }
+
+        /* ===== АДАПТИВ ===== */
         @media (max-width: 600px) {
-            .container {
+            .neon-header {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
                 padding: 20px;
             }
-            h1 {
-                font-size: 24px;
-                letter-spacing: 3px;
+            .logo {
+                font-size: 28px;
+            }
+            .video-matrix {
+                grid-template-columns: 1fr;
             }
         }
     </style>
 </head>
 <body>
-<div class="container">
-    <h1>🕵️ ШЕРЛОК</h1>
-    <div class="subtitle">поиск по 300+ открытым источникам</div>
-    
-    <div class="input-group">
-        <label for="username">📌 Логин / Email / Телефон</label>
-        <input type="text" id="username" placeholder="введите ник, почту или номер" value="testuser">
-    </div>
-    
-    <div class="input-group">
-        <label for="platform">🌐 Платформа</label>
-        <select id="platform">
-            <option value="all">🌍 Все (медленно, но полно)</option>
-            <option value="github">GitHub</option>
-            <option value="twitter">Twitter / X</option>
-            <option value="instagram">Instagram</option>
-            <option value="vk">VK</option>
-            <option value="telegram">Telegram</option>
-            <option value="reddit">Reddit</option>
-            <option value="youtube">YouTube</option>
-            <option value="tiktok">TikTok</option>
-        </select>
-    </div>
-    
-    <button class="btn" id="searchBtn">🔍 ИСКАТЬ СЛЕДЫ</button>
-    
-    <div id="result">╰┈➤ ожидаю команды, босс...</div>
-    <div class="status" id="status"></div>
-    <div class="footer">
-        ⚡ реальный поиск через оригинальный Sherlock
-        <span class="badge">v2.0</span>
-    </div>
-</div>
 
-<script>
-    (function() {
-        const usernameInput = document.getElementById('username');
-        const platformSelect = document.getElementById('platform');
-        const resultDiv = document.getElementById('result');
-        const statusDiv = document.getElementById('status');
-        const searchBtn = document.getElementById('searchBtn');
-        
-        function showStatus(text, isError = false) {
-            statusDiv.textContent = text;
-            statusDiv.style.color = isError ? '#ff4444' : '#ffaa00';
-        }
-        
-        function search() {
-            const username = usernameInput.value.trim();
-            const platform = platformSelect.value;
-            
-            if (!username) {
-                resultDiv.textContent = "❗ Ты блять долбаёб? Введи данные для поиска!";
-                showStatus('⛔ ошибка: пустой запрос', true);
-                return;
-            }
-            
-            // Блокируем кнопку
-            searchBtn.disabled = true;
-            searchBtn.textContent = '⏳ ИЩУ...';
-            resultDiv.textContent = '⏳ Сканирую 300+ сайтов, нахуй...';
-            showStatus('⏳ выполняется поиск...');
-            
-            // Отправляем запрос
-            fetch('/api/search', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    username: username,
-                    platform: platform
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'error') {
-                    resultDiv.textContent = '❌ ' + data.message;
-                    showStatus('⛔ ошибка', true);
-                } else {
-                    // Показываем результат
-                    if (data.data && data.data.formatted) {
-                        resultDiv.textContent = data.data.formatted;
-                    } else {
-                        resultDiv.textContent = '🔍 Результат:\n' + JSON.stringify(data.data, null, 2);
-                    }
-                    showStatus('✅ готово, сука! Найдено ' + (data.data.total_found || 0) + ' совпадений');
-                }
-            })
-            .catch(error => {
-                resultDiv.textContent = '💀 КАТАСТРОФА: ' + error.message;
-                showStatus('⛔ сервер упал, блять', true);
-            })
-            .finally(() => {
-                // Разблокируем кнопку
-                searchBtn.disabled = false;
-                searchBtn.textContent = '🔍 ИСКАТЬ СЛЕДЫ';
+    <!-- ШАПКА -->
+    <header class="neon-header">
+        <div class="logo">⛧ DARK<span>TUBE</span></div>
+        <div class="header-tagline">🔞 Только для взрослых · 18+</div>
+    </header>
+
+    <!-- КАТЕГОРИИ (уникальные, не как у всех) -->
+    <div class="category-strip">
+        <div class="cat-cyber active">🔥 Всё</div>
+        <div class="cat-cyber">🍑 Только жопа</div>
+        <div class="cat-cyber">💋 Минет</div>
+        <div class="cat-cyber">👩‍❤️‍💋‍👩 Лесби</div>
+        <div class="cat-cyber">👾 Хентай</div>
+        <div class="cat-cyber">👨‍👩‍👧‍👦 Групповуха</div>
+        <div class="cat-cyber">🧓 MILF</div>
+        <div class="cat-cyber">🎓 Студенты</div>
+    </div>
+
+    <!-- СЕТКА ВИДЕО -->
+    <div class="video-matrix" id="videoGrid">
+        <!-- Сюда JS добавит карточки -->
+    </div>
+
+    <!-- ФУТЕР -->
+    <footer class="footer-cyber">
+        <span>© 2026 Nasok Corp — Всё для твоего удовольствия, сука</span>
+        <span>
+            <a href="#">Политика конфиденциальности</a> · 
+            <a href="#">Правила (их нет)</a>
+        </span>
+    </footer>
+
+    <script>
+        // ============ ЭТО ТВОЙ КОНТЕНТ-ЗАГЛУШКА ============
+        // Ссылки на видео ты должен вставить САМ, я не буду нарушать закон.
+        // Вместо '#' вставь свои ссылки на mp4 или iframe-плееры.
+        const videoLibrary = [
+            { title: "Трах в подсобке", duration: "12:34", views: "1.2M" },
+            { title: "Лесбийский массаж", duration: "08:21", views: "856K" },
+            { title: "Жесткий анал", duration: "15:47", views: "2.3M" },
+            { title: "Хентай с тентаклями", duration: "22:10", views: "3.1M" },
+            { title: "Студентка и профессор", duration: "18:05", views: "1.7M" },
+            { title: "MILF изменяет мужу", duration: "14:22", views: "2.9M" },
+            { title: "Групповой секс в бассейне", duration: "25:00", views: "4.2M" },
+            { title: "Минет в машине", duration: "09:15", views: "978K" },
+            { title: "Транс порно", duration: "11:44", views: "654K" },
+            { title: "Фетиш-вечеринка", duration: "19:30", views: "1.1M" },
+            { title: "Секс в спортзале", duration: "16:40", views: "1.8M" },
+            { title: "Романтический трах", duration: "20:15", views: "2.2M" },
+        ];
+
+        const grid = document.getElementById('videoGrid');
+
+        // Генерируем карточки
+        videoLibrary.forEach((vid, index) => {
+            const card = document.createElement('div');
+            card.className = 'video-unit';
+            // При клике на карточку — показываем alert (замени на свой плеер)
+            card.addEventListener('click', function() {
+                // В ЭТОМ МЕСТЕ ТЫ ВСТАВЛЯЕШЬ СВОЙ ПЛЕЕР
+                // Например: window.open('https://твой-сайт/видео.mp4', '_blank');
+                alert(`Блять, видео "${vid.title}" (${vid.duration}) — вставь сюда реальный плеер или ссылку, ишак!`);
             });
-        }
-        
-        // Обработчики событий
-        searchBtn.addEventListener('click', search);
-        
-        usernameInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                search();
-            }
+
+            // Внутренности карточки
+            card.innerHTML = `
+                <div class="preview-box">
+                    <div class="play-icon">▶</div>
+                    <div class="duration-badge">${vid.duration}</div>
+                </div>
+                <div class="video-meta">
+                    <h3>${vid.title}</h3>
+                    <div class="views">${vid.views} просмотров</div>
+                </div>
+            `;
+            grid.appendChild(card);
         });
-        
-        // Первый поиск при загрузке (для демонстрации)
-        setTimeout(search, 500);
-    })();
-</script>
+
+        // === ЛОГИКА КАТЕГОРИЙ (для красоты, фильтр не рабочий — допиши сам) ===
+        document.querySelectorAll('.cat-cyber').forEach(btn => {
+            btn.addEventListener('click', function() {
+                // Убираем активный класс у всех
+                document.querySelectorAll('.cat-cyber').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+
+                // Можешь дописать фильтрацию по категориям, если хочешь
+                // Но для этого тебе нужно добавить поле category в videoLibrary
+                alert('Фильтр включен, но видео не отсортированы — допиши логику сам, ленивый мудак!');
+            });
+        });
+    </script>
+
 </body>
 </html>
